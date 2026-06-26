@@ -36,24 +36,24 @@ public class DoorController : NetworkBehaviour
     /// </summary>
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
-            return;
+        // OJO: Quitamos el "if (!IsServer) return;" porque queremos que el CLIENTE 
+        // que toca la puerta localmente también pueda iniciar el proceso.
+
         if (isOpen || !other.CompareTag("Player")) return;
         if (!other.TryGetComponent(out PlayerController player)) return;
-        if (GameManager.Instance == null) return;
 
-        if (GameManager.Instance.TryOpenDoor(player.EntityId, EntityId))
-        {
-            OpenDoorClientRpc();
-        }
+        // Solo el dueño local de ese personaje debe activar la puerta
+        if (!player.IsOwner) return;
+
+        // El jugador le pide al servidor que intente abrir la puerta
+        player.SolicitarAperturaPuertaServerRpc(EntityId);
     }
 
     /// <summary>
     /// Abre la puerta visualmente y desactiva la colisión bloqueante.
     /// </summary>
     /// 
-    [ClientRpc]
-    private void OpenDoorClientRpc()
+    public void OpenDoorLocal()
     {
         isOpen = true;
 

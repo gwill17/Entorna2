@@ -32,6 +32,7 @@ public class PlayerController : CharController
         NetworkVariableWritePermission.Server
 
     );
+
     /// <summary>
     /// Inicializa controles de entrada y registra el jugador local en el gestor global.
     /// </summary>
@@ -319,6 +320,8 @@ public class PlayerController : CharController
         animator.ResetTrigger("Attack");
         animator.SetTrigger("Attack");
     }
+
+
     /// <summary>
     /// Finaliza el estado de ataque del jugador.
     /// </summary>
@@ -332,5 +335,16 @@ public class PlayerController : CharController
     private void SetAttackingServerRpc(bool value)
     {
         isAttackingNet.Value = value;
+    }
+
+    [ServerRpc]
+    public void SolicitarAperturaPuertaServerRpc(string doorEntityId)
+    {
+        // El servidor recibe la petición del cliente y valida si tiene llaves
+        if (GameManager.Instance.TryOpenDoor(OwnerClientId))
+        {
+            // Si tiene llaves, el GameManager avisa a todo el mundo
+            GameManager.Instance.NotificarAperturaPuertaAClientes(doorEntityId);
+        }
     }
 }

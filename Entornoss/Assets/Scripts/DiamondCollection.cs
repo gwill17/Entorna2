@@ -27,26 +27,28 @@ public class DiamondCollection : NetworkBehaviour
     /// <summary>
     /// Detecta la colisión con el jugador e intenta recoger el diamante.
     /// </summary>
-    private void OnCollisionStay2D(Collision2D collision)
+    private void OnTriggerEnter2D(Collider2D collision)
     {
+        // Solo el Servidor valida y procesa la recolección de objetos
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
             return;
 
-        if (!collision.gameObject.CompareTag(playerTag)) return;
+        if (!collision.CompareTag(playerTag)) return;
 
-        PlayerController player = collision.gameObject.GetComponent<PlayerController>();
+        PlayerController player = collision.GetComponent<PlayerController>();
         if (player == null) return;
         if (GameManager.Instance == null) return;
 
-        if (GameManager.Instance.TryAddDiamond(player.EntityId, EntityId))
+        // Usamos el OwnerClientId nativo del NetworkBehaviour del jugador
+        if (GameManager.Instance.TryAddDiamond(player.OwnerClientId, EntityId))
         {
-            Debug.Log($"[{EntityType}:{EntityId}] collected by [Player:{player.EntityId}]");
-            NetworkObject netObj = GetComponent<NetworkObject>();
+            Debug.Log($"[{EntityType}:{EntityId}] recogido por Cliente ID: {player.OwnerClientId}");
 
+            NetworkObject netObj = GetComponent<NetworkObject>();
             if (netObj != null && netObj.IsSpawned)
-                netObj.Despawn(true);
-            else
-                Destroy(gameObject);
+            {
+                netObj.Despawn(true); // Destruye sincronizadamente en la red
+            }
         }
     }
 }

@@ -37,6 +37,9 @@ public class GameManager : NetworkBehaviour
 
     private Dictionary<ulong, PlayerGameState> playerStates = new();
 
+    private int localClientDiamonds;
+    private int localClientKeys;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -132,46 +135,143 @@ public class GameManager : NetworkBehaviour
     {
         GameEvents.EnemyKilled(newValue);
     }
-    public int GetKeys()
-    {
-        if (LocalPlayerController == null) return 0;
-
-        PlayerGameState state = GetStateForPlayer(LocalPlayerController.EntityId);
-        return state?.Keys ?? 0;
-    }
-
     public int GetDiamonds()
     {
         if (LocalPlayerController == null) return 0;
 
-        PlayerGameState state = GetStateForPlayer(LocalPlayerController.EntityId);
-        return state?.Diamonds ?? 0;
+        if (IsServer)
+        {
+            ulong clientId = LocalPlayerController.OwnerClientId;
+            return playerStates.ContainsKey(clientId) ? playerStates[clientId].Diamonds : 0;
+        }
+        return localClientDiamonds;
     }
 
-    public bool TryAddKey(string playerEntityId, string keyEntityId)
+    public int GetKeys()
     {
-        PlayerGameState state = GetStateForPlayer(playerEntityId);
-        if (state == null) return false;
+        if (LocalPlayerController == null) return 0;
 
-        state.AddKey();
+        if (IsServer)
+        {
+            ulong clientId = LocalPlayerController.OwnerClientId;
+            return playerStates.ContainsKey(clientId) ? playerStates[clientId].Keys : 0;
+        }
+        return localClientKeys;
+    }
+
+    public bool TryAddDiamond(ulong playerClientId, string diamondEntityId)
+    {
+        if (!IsServer) return false;
+
+        // Si no existe el estado en el servidor para este cliente, lo inicializamos inmediatamente
+        if (!playerStates.ContainsKey(playerClientId))
+        {
+            playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
+        }
+
+        playerStates[playerClientId].AddDiamond();
+
+        // Enviamos el RPC ÚNICAMENTE al cliente que lo recogió
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { playerClientId }
+            }
+        };
+
+        SincronizarHUDLocalClientRpc(playerStates[playerClientId].Diamonds, playerStates[playerClientId].Keys, clientRpcParams);
         return true;
     }
 
-    public bool TryAddDiamond(string playerEntityId, string diamondEntityId)
+    // NUEVA FUNCIÓN CORREGIDA PARA LLAVES
+    public bool TryAddKey(ulong playerClientId, string keyEntityId)
     {
-        PlayerGameState state = GetStateForPlayer(playerEntityId);
-        if (state == null) return false;
+        if (!IsServer) return false;
 
-        state.AddDiamond();
+        // Si no existe el estado para este cliente en el servidor, lo inicializamos inmediatamente
+        if (!playerStates.ContainsKey(playerClientId))
+        {
+            playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
+        }
+
+        playerStates[playerClientId].AddKey();
+
+        // Enviamos el RPC ÚNICAMENTE al cliente que lo recogió
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new ulong[] { playerClientId }
+            }
+        };
+
+        SincronizarHUDLocalClientRpc(playerStates[playerClientId].Diamonds, playerStates[playerClientId].Keys, clientRpcParams);
         return true;
     }
 
-    public bool TryOpenDoor(string playerEntityId, string doorEntityId)
+    // Sincronizamos las variables del cliente que recibe el RPC antes de actualizar su HUD
+    [ClientRpc]
+    private void SincronizarHUDLocalClientRpc(int totalDiamonds, int totalKeys, ClientRpcParams clientRpcParams = default)
     {
-        PlayerGameState state = GetStateForPlayer(playerEntityId);
-        if (state == null) return false;
+        Debug.Log($"[HUD RPC] Actualizando mi HUD: Diamantes {totalDiamonds}, Llaves {totalKeys}");
 
-        return state.UseKey();
+        localClientDiamonds = totalDiamonds;
+        localClientKeys = totalKeys;
+
+        GameEvents.DiamondsChanged();
+        GameEvents.KeysChanged();
+    }
+
+    private PlayerController FindPlayerByEntityId(string entityId)
+    {
+        foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        {
+            if (player.EntityId == entityId) return player;
+        }
+        return null;
+    }
+
+    
+    [ClientRpc]
+    private void UpdateLocalPlayerHUDClientRpc(int currentDiamonds, int currentKeys, ClientRpcParams clientRpcParams = default)
+    {
+        
+        if (GameManager.Instance.LocalPlayerController != null)
+        {
+            Debug.Log($"[HUD RPC] Actualizando HUD local. Diamantes: {currentDiamonds}, Llaves: {currentKeys}");
+
+            GameEvents.DiamondsChanged();
+            GameEvents.KeysChanged();
+        }
+    }
+
+    public bool TryOpenDoor(ulong playerClientId)
+    {
+        if (!IsServer) return false;
+        if (!playerStates.ContainsKey(playerClientId)) return false;
+
+        return playerStates[playerClientId].UseKey();
+    }
+
+    public void NotificarAperturaPuertaAClientes(string doorEntityId)
+    {
+        if (!IsServer) return;
+        AprobarAperturaPuertaClientRpc(doorEntityId);
+    }
+
+    [ClientRpc]
+    private void AprobarAperturaPuertaClientRpc(string doorEntityId)
+    {
+        DoorController[] puertas = FindObjectsByType<DoorController>(FindObjectsSortMode.None);
+        foreach (DoorController puerta in puertas)
+        {
+            if (puerta.EntityId == doorEntityId)
+            {
+                puerta.OpenDoorLocal();
+                return;
+            }
+        }
     }
 
     public bool TryTriggerVictory(string playerEntityId, string chestEntityId)
@@ -191,7 +291,7 @@ public class GameManager : NetworkBehaviour
         SelectedCharacterStats = selectedCharacter;
         ResetGameData();
 
-        // 🌟 CARGA DE ESCENA SEGURA EN RED
+        // CARGA DE ESCENA SEGURA EN RED
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.PlaygroundLevel, LoadSceneMode.Single);
@@ -224,7 +324,7 @@ public class GameManager : NetworkBehaviour
 
     private void loadDeadScene()
     {
-        // 🌟 CARGA DE ESCENA SEGURA EN RED
+        //  CARGA DE ESCENA SEGURA EN RED
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.DeadScene, LoadSceneMode.Single);
@@ -243,7 +343,7 @@ public class GameManager : NetworkBehaviour
 
     private void loadVictoryScene()
     {
-        // 🌟 CARGA DE ESCENA SEGURA EN RED
+        //  CARGA DE ESCENA SEGURA EN RED
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.VictoryScene, LoadSceneMode.Single);
@@ -258,4 +358,6 @@ public class GameManager : NetworkBehaviour
     {
         Debug.Log($"[GameManager] Jugador muerto. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
     }
+
+    
 }

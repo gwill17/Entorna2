@@ -27,25 +27,27 @@ public class KeyCollection : NetworkBehaviour
     /// <summary>
     /// Detecta la colisión con el jugador e intenta recoger la llave.
     /// </summary>
-    private void OnCollisionStay2D(Collision2D collision)
+    private void OnTriggerEnter2D(Collider2D collision)
     {
+        // Solo el Servidor valida y procesa la recolección de objetos
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
             return;
-        if (!collision.gameObject.CompareTag(playerTag)) return;
 
-        PlayerController player = collision.gameObject.GetComponent<PlayerController>();
+        if (!collision.CompareTag(playerTag)) return;
+
+        PlayerController player = collision.GetComponent<PlayerController>();
         if (player == null) return;
         if (GameManager.Instance == null) return;
 
-        if (GameManager.Instance.TryAddKey(player.EntityId, EntityId))
+        if (GameManager.Instance.TryAddKey(player.OwnerClientId, EntityId))
         {
             Debug.Log($"[{EntityType}:{EntityId}] collected by [Player:{player.EntityId}]");
-            NetworkObject netObj = GetComponent<NetworkObject>();
 
+            NetworkObject netObj = GetComponent<NetworkObject>();
             if (netObj != null && netObj.IsSpawned)
+            {
                 netObj.Despawn(true);
-            else
-                Destroy(gameObject);
+            }
         }
     }
 }
