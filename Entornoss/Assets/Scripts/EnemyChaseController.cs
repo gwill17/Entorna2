@@ -20,11 +20,11 @@ public class EnemyChaseController : EnemyController
     {
         base.Start();
 
-        if (GameManager.Instance != null)
+        /*if (GameManager.Instance != null)
         {
             playerTransform = GameManager.Instance.LocalPlayerTransform;
             GameEvents.OnLocalPlayerRegistered += onPlayerRegistered;
-        }
+        }*/
 
         setNewWanderDirection();
     }
@@ -35,7 +35,7 @@ public class EnemyChaseController : EnemyController
     public override void OnDestroy()
     {
         base.OnDestroy();
-        GameEvents.OnLocalPlayerRegistered -= onPlayerRegistered;
+        //GameEvents.OnLocalPlayerRegistered -= onPlayerRegistered;
     }
 
     /// <summary>
@@ -71,8 +71,17 @@ public class EnemyChaseController : EnemyController
     /// </summary>
     protected override void Move()
     {
-        if (isKnockback || playerTransform == null)
+        // Recordatorio: El movimiento y lógica de IA solo corre en el Servidor
+        if (isKnockback) return;
+
+        // Buscamos cuál es el jugador más cercano en este frame
+        playerTransform = GetNearestPlayer();
+
+        if (playerTransform == null)
+        {
+            wanderMovement();
             return;
+        }
 
         float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
 
@@ -105,6 +114,31 @@ public class EnemyChaseController : EnemyController
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
             transform.rotation = Quaternion.Euler(0, 0, angle);
         }
+    }
+
+    /// <summary>
+    /// Devuelve el Transform del jugador más cercano al enemigo.
+    /// </summary>
+    private Transform GetNearestPlayer()
+    {
+        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        Transform nearestPlayer = null;
+        float shortestDistance = float.MaxValue;
+
+        foreach (PlayerController player in allPlayers)
+        {
+            // Opcional: Si el jugador está muerto, lo ignoramos
+            // if (player.IsDead) continue; 
+
+            float distance = Vector2.Distance(transform.position, player.transform.position);
+            if (distance < shortestDistance)
+            {
+                shortestDistance = distance;
+                nearestPlayer = player.transform;
+            }
+        }
+
+        return nearestPlayer;
     }
 
     /// <summary>
