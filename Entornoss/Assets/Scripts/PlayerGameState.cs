@@ -14,6 +14,11 @@ public class PlayerGameState
     public int keys = 0;
     public int diamonds = 0;
 
+
+    public int EnemiesKilled { get; set; }
+    public void AddEnemyKill() { EnemiesKilled++; }
+
+
     /// <summary>
     /// Inicializa el estado del jugador con su identificador único.
     /// </summary>
@@ -21,6 +26,7 @@ public class PlayerGameState
     {
         playerId = entityId;
     }
+
 
     /// <summary>
     /// Obtiene o establece las llaves actuales aplicando límites válidos.

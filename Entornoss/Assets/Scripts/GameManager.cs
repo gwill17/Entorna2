@@ -36,9 +36,11 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private float delayBeforeScene = 0.5f;
 
     private Dictionary<ulong, PlayerGameState> playerStates = new();
+    private bool isGameOver = false;
 
     private int localClientDiamonds;
     private int localClientKeys;
+    private int localClientEnemies;
 
     private void Awake()
     {
@@ -49,11 +51,11 @@ public class GameManager : NetworkBehaviour
         }
 
         Instance = this;
+        isGameOver = false;
         DontDestroyOnLoad(gameObject);
-
-        //playerState = new PlayerGameState("PLAYER_1");
         SceneManager.sceneUnloaded += onSceneUnloaded;
     }
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -115,22 +117,39 @@ public class GameManager : NetworkBehaviour
     public void SetPlayerData(UniqueEntity playerEntity)
     {
         if (playerEntity == null || string.IsNullOrEmpty(playerEntity.EntityId)) return;
-        //playerState = new PlayerGameState(playerEntity.EntityId);
     }
 
     public void ResetGameData()
     {
         playerStates.Clear();
+        Time.timeScale = 1f; 
 
         if (IsServer)
             enemiesKilledNet.Value = 0;
     }
 
-    public void AddEnemyKill()
+    public void AddEnemyKillServer(ulong playerClientId)
     {
+        if (!IsServer) return;
+
+        if (!playerStates.ContainsKey(playerClientId))
+        {
+            playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
+        }
+
+        PlayerGameState state = playerStates[playerClientId];
+        state.EnemiesKilled++; 
+        playerStates[playerClientId] = state;
+
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerClientId } }
+        };
+        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, state.EnemiesKilled, clientRpcParams);
+
         enemiesKilledNet.Value++;
-        GameEvents.EnemyKilled(enemiesKilledNet.Value);
     }
+
     private void OnEnemiesKilledChanged(int oldValue, int newValue)
     {
         GameEvents.EnemyKilled(newValue);
@@ -159,36 +178,40 @@ public class GameManager : NetworkBehaviour
         return localClientKeys;
     }
 
+    public int GetMyEnemiesKilled()
+    {
+        if (IsServer && LocalPlayerController != null)
+        {
+            ulong clientId = LocalPlayerController.OwnerClientId;
+            return playerStates.ContainsKey(clientId) ? playerStates[clientId].EnemiesKilled : 0;
+        }
+        return localClientEnemies;
+    }
+
     public bool TryAddKey(ulong playerClientId, string keyEntityId)
     {
         if (!IsServer) return false;
 
-        // 1. Si no existe, creamos el estado inicial
         if (!playerStates.ContainsKey(playerClientId))
         {
             playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
         }
 
-        // 2. EXTRAEMOS el struct (Copia temporal)
         PlayerGameState state = playerStates[playerClientId];
 
-        // 3. Modificamos la variable
         state.AddKey();
 
-        // 4. ¡CRUCIAL! Volvemos a guardar el struct modificado en el diccionario
         playerStates[playerClientId] = state;
 
-        // Enviamos el RPC ÚNICAMENTE al cliente que lo recogió para actualizar su HUD
         ClientRpcParams clientRpcParams = new ClientRpcParams
         {
             Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerClientId } }
         };
 
-        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
+        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, state.EnemiesKilled, clientRpcParams);
         return true;
     }
 
-    // HAZ LO MISMO CON LOS DIAMANTES POR SI ACASO EN GameManager.cs
     public bool TryAddDiamond(ulong playerClientId, string diamondEntityId)
     {
         if (!IsServer) return false;
@@ -198,7 +221,6 @@ public class GameManager : NetworkBehaviour
             playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
         }
 
-        // Extraemos, modificamos y reasignamos el struct
         PlayerGameState state = playerStates[playerClientId];
         state.AddDiamond();
         playerStates[playerClientId] = state;
@@ -208,21 +230,22 @@ public class GameManager : NetworkBehaviour
             Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerClientId } }
         };
 
-        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
+        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, state.EnemiesKilled, clientRpcParams);
         return true;
     }
 
-    // Sincronizamos las variables del cliente que recibe el RPC antes de actualizar su HUD
     [ClientRpc]
-    private void SincronizarHUDLocalClientRpc(int totalDiamonds, int totalKeys, ClientRpcParams clientRpcParams = default)
+    private void SincronizarHUDLocalClientRpc(int totalDiamonds, int totalKeys, int totalEnemies, ClientRpcParams clientRpcParams = default)
     {
         Debug.Log($"[HUD RPC] Actualizando mi HUD: Diamantes {totalDiamonds}, Llaves {totalKeys}");
 
         localClientDiamonds = totalDiamonds;
         localClientKeys = totalKeys;
+        localClientEnemies = totalEnemies;
 
         GameEvents.DiamondsChanged();
         GameEvents.KeysChanged();
+        
     }
 
     private PlayerController FindPlayerByEntityId(string entityId)
@@ -256,17 +279,15 @@ public class GameManager : NetworkBehaviour
         {
             if (state.Keys > 0)
             {
-                state.Keys--; // Consumimos la llave en el servidor
-                playerStates[clientId] = state; // Guardamos el struct modificado
+                state.Keys--; 
+                playerStates[clientId] = state; 
 
-                // Sincronizamos el HUD de quien gastó la llave
                 ClientRpcParams clientRpcParams = new ClientRpcParams
                 {
                     Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } }
                 };
-                SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
+                SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, state.EnemiesKilled, clientRpcParams);
 
-                // ¡EL PASO CLAVE! Le mandamos a todos la POSICIÓN exacta de la puerta
                 AbrePuertaPorPosicionGlobalClientRpc(doorPosition);
 
                 return true;
@@ -278,15 +299,13 @@ public class GameManager : NetworkBehaviour
     [ClientRpc]
     private void AbrePuertaPorPosicionGlobalClientRpc(Vector3 doorPosition)
     {
-        // Buscamos todas las puertas en la escena local de este ordenador
         DoorController[] puertas = FindObjectsByType<DoorController>(FindObjectsSortMode.None);
 
         foreach (DoorController puerta in puertas)
         {
-            // Comparamos si la distancia entre la puerta y la posición enviada es casi cero
             if (Vector3.Distance(puerta.transform.position, doorPosition) < 0.2f)
             {
-                puerta.OpenDoorLocal(); // Abre la puerta (sprite + collider)
+                puerta.OpenDoorLocal(); 
                 Debug.Log($"[Netcode] Puerta abierta síncronamente en posición: {doorPosition}");
                 break;
             }
@@ -294,9 +313,39 @@ public class GameManager : NetworkBehaviour
     }
     public bool TryTriggerVictory(string playerEntityId, string chestEntityId)
     {
-        victoryAchieved();
+        if (isGameOver) return false;
+
+        if (!IsServer)
+        {
+            NotificarVictoriaAlServidorServerRpc();
+            return true;
+        }
+
+        ProcesarVictoriaGlobal();
         return true;
     }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void NotificarVictoriaAlServidorServerRpc()
+    {
+        if (isGameOver) return;
+        ProcesarVictoriaGlobal();
+    }
+
+    private void ProcesarVictoriaGlobal()
+    {
+        if (isGameOver) return;
+        isGameOver = true; 
+
+        CongelarEntidadesPartidaClientRpc();
+
+        Debug.Log($"[F3.5] ¡Victoria alcanzada! Avisando a todos los clientes.");
+
+        CancelInvoke(nameof(loadDeadScene));
+        Invoke(nameof(loadVictoryScene), delayBeforeScene);
+    }
+
+
     public void StartGame(PlayerStats selectedCharacter)
     {
         if (selectedCharacter == null)
@@ -309,7 +358,6 @@ public class GameManager : NetworkBehaviour
         SelectedCharacterStats = selectedCharacter;
         ResetGameData();
 
-        // CARGA DE ESCENA SEGURA EN RED
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.PlaygroundLevel, LoadSceneMode.Single);
@@ -328,9 +376,13 @@ public class GameManager : NetworkBehaviour
 
     public void TriggerGameOver()
     {
+        
+        if (isGameOver) return;
+
         Debug.Log($"[GameManager] Game Over. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
-        Invoke(nameof(loadDeadScene), delayBeforeScene);
+        ProcesarDerrotaGlobal();
     }
+    
 
     private void onSceneUnloaded(Scene scene)
     {
@@ -342,7 +394,6 @@ public class GameManager : NetworkBehaviour
 
     private void loadDeadScene()
     {
-        //  CARGA DE ESCENA SEGURA EN RED
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.DeadScene, LoadSceneMode.Single);
@@ -361,7 +412,6 @@ public class GameManager : NetworkBehaviour
 
     private void loadVictoryScene()
     {
-        //  CARGA DE ESCENA SEGURA EN RED
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.VictoryScene, LoadSceneMode.Single);
@@ -372,10 +422,76 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    private void onPlayerDeath()
+    private void onPlayerDeath() 
     {
+        if (isGameOver) return;
+
         Debug.Log($"[GameManager] Jugador muerto. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
+        ProcesarDerrotaGlobal();
     }
 
-    
+    private void ProcesarDerrotaGlobal()
+    {
+        if (isGameOver) return;
+        isGameOver = true; 
+
+        CongelarEntidadesPartidaClientRpc();
+
+        Debug.Log($"[GameManager] ¡Derrota alcanzada! Avisando a todos los clientes.");
+
+        CancelInvoke(nameof(loadVictoryScene));
+        Invoke(nameof(loadDeadScene), delayBeforeScene);
+    }
+
+    [ClientRpc]
+    private void CongelarEntidadesPartidaClientRpc()
+    {
+        EnemyController[] enemigos = FindObjectsByType<EnemyController>(FindObjectsSortMode.None);
+        foreach (EnemyController enemigo in enemigos)
+        {
+            enemigo.enabled = false; 
+
+            if (enemigo.TryGetComponent<SpriteRenderer>(out SpriteRenderer sr)) sr.enabled = false;
+            foreach (var childSR in enemigo.GetComponentsInChildren<SpriteRenderer>()) childSR.enabled = false;
+
+            if (enemigo.TryGetComponent<Collider2D>(out Collider2D col)) col.enabled = false;
+            if (enemigo.TryGetComponent<Rigidbody2D>(out Rigidbody2D rb))
+            {
+                rb.linearVelocity = Vector2.zero;
+                rb.bodyType = RigidbodyType2D.Kinematic;
+            }
+        }
+
+        PlayerController[] jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (PlayerController jugador in jugadores)
+        {
+            if (jugador.TryGetComponent<Collider2D>(out Collider2D col)) col.enabled = false;
+            if (jugador.TryGetComponent<Rigidbody2D>(out Rigidbody2D rb))
+            {
+                rb.linearVelocity = Vector2.zero;
+                rb.bodyType = RigidbodyType2D.Kinematic;
+            }
+
+            if (jugador.TryGetComponent<SpriteRenderer>(out SpriteRenderer sr)) sr.enabled = false;
+            foreach (var childSR in jugador.GetComponentsInChildren<SpriteRenderer>()) childSR.enabled = false;
+        }
+
+        SpriteRenderer[] todosLosSprites = FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None);
+        foreach (SpriteRenderer sprite in todosLosSprites)
+        {
+            if (sprite == null || sprite.gameObject == null) continue;
+
+            string nombre = sprite.gameObject.name.ToLower();
+
+            if (nombre.Contains("diamond") || nombre.Contains("key") || nombre.Contains("drop") || nombre.Contains("gem"))
+            {
+                sprite.enabled = false;
+                if (sprite.TryGetComponent<Collider2D>(out Collider2D colItem))
+                {
+                    colItem.enabled = false;
+                }
+            }
+        }
+    }
+
 }

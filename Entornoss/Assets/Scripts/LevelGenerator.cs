@@ -86,14 +86,11 @@ public class LevelGenerator : NetworkBehaviour
 
         if (NetworkManager.Singleton.IsServer)
         {
-            // 1. El servidor genera una semilla aleatoria y la aplica
             int seed = System.Environment.TickCount;
             UnityEngine.Random.InitState(seed);
 
-            // 2. Avisa a los clientes de la semilla para que generen el MISMO mapa
             GenerarMapaConSemillaClientRpc(seed);
 
-            // 3. Spawnea los jugadores
             SpawnPlayersProcedural();
         }
     }
@@ -103,7 +100,6 @@ public class LevelGenerator : NetworkBehaviour
     {
         if (levelGenerated) return;
 
-        // Todos los clientes configuran su estado aleatorio con el mismo número
         UnityEngine.Random.InitState(seed);
 
         generateLevel();
@@ -113,20 +109,7 @@ public class LevelGenerator : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         Debug.Log($"[LevelGenerator] OnNetworkSpawn. IsServer={IsServer}, IsClient={IsClient}");
-        /*
-        base.OnNetworkSpawn();
-        
-
-        // 🛡️ Regla de oro: Solo el Servidor/Host coordina la creación del mapa y los personajes
-        if (!IsServer) return;
-
-        Debug.Log("[LevelGenerator] OnNetworkSpawn detectado en Servidor. Generando nivel único y seguro...");
-
-        // 1. Generamos el nivel completo en orden
-        generateLevel();
-
-        // 2. Calculamos las posiciones finales y spawneamos a los jugadores conectados
-        SpawnPlayersProcedural();*/
+       
     }
 
     private void SpawnPlayersProcedural()
@@ -149,13 +132,11 @@ public class LevelGenerator : NetworkBehaviour
 
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
-            // Instanciamos el clon físico en el servidor
             GameObject playerInstance = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
 
             NetworkObject netObj = playerInstance.GetComponent<NetworkObject>();
             if (netObj != null)
             {
-                // Le asignamos el control de red al cliente correspondiente de forma limpia
                 netObj.SpawnAsPlayerObject(client.ClientId);
                 Debug.Log($"[LevelGenerator] Player spawneado para ClientId={client.ClientId}, Owner={netObj.OwnerClientId}");
             }

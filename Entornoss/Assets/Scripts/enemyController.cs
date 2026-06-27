@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using Unity.Netcode;
 using System.Collections;
-using Unity.Netcode;
 
 public abstract class EnemyController : CharController
 {
@@ -25,7 +24,6 @@ public abstract class EnemyController : CharController
             return;
 
         if (!collision.gameObject.CompareTag("Player")) return;
-
 
         PlayerController player = collision.gameObject.GetComponent<PlayerController>();
         if (player == null) return;
@@ -70,43 +68,55 @@ public abstract class EnemyController : CharController
     /// </summary>
     public override void Die()
     {
-        base.Die();
-
-        if (GameManager.Instance != null)
-            GameManager.Instance.AddEnemyKill();
-
-        spawnDrops();
+        // Interceptamos la llamada de Die() de la clase base para redirigirla al flujo controlado multijugador
+        checkDeath();
     }
 
     /// <summary>
-    /// Verifica si el enemigo debe morir y programa su destrucción en escena.
+    /// Verifica si el enemigo debe morir y programa su destrucción en escena atribuyendo la baja al jugador correcto.
     /// </summary>
-    protected void checkDeath()
+    protected virtual void checkDeath()
     {
-        if (health <= 0)
+        if (!NetworkManager.Singleton.IsServer) return;
+
+        // 1. Buscamos al jugador más cercano en escena para asignarle la baja personal
+        PlayerController[] jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        PlayerController atacante = null;
+        float distanciaMinima = float.MaxValue;
+
+        foreach (var p in jugadores)
         {
-            Die();
-            StartCoroutine(despawnAfterDeath());
+            float dist = Vector3.Distance(transform.position, p.transform.position);
+            if (dist < distanciaMinima)
+            {
+                distanciaMinima = dist;
+                atacante = p;
+            }
+        }
+
+        // 2. Registramos la baja síncrona en el Servidor usando la ID de red del atacante encontrado
+        if (atacante != null && GameManager.Instance != null)
+        {
+            GameManager.Instance.AddEnemyKillServer(atacante.OwnerClientId);
+        }
+
+        // 3. Spawneamos los drops de forma segura (una sola vez)
+        spawnDrops();
+
+        // 4. Despawn oficial del objeto de red
+        if (NetworkObject != null && NetworkObject.IsSpawned)
+        {
+            NetworkObject.Despawn(true);
+        }
+        else
+        {
+            Destroy(gameObject);
         }
     }
 
     /// <summary>
     /// Genera los drops del enemigo usando la configuración activa del mapa.
     /// </summary>
-    private IEnumerator despawnAfterDeath()
-    {
-        yield return new WaitForSeconds(1.2f);
-
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
-            yield break;
-
-        NetworkObject netObj = GetComponent<NetworkObject>();
-
-        if (netObj != null && netObj.IsSpawned)
-        {
-            netObj.Despawn(true);
-        }
-    }
     protected virtual void spawnDrops()
     {
         if (dropPrefabs == null || dropPrefabs.Length == 0)
@@ -174,5 +184,20 @@ public abstract class EnemyController : CharController
             return mapCfg.goatDropConfig;
 
         return null;
+    }
+
+    private IEnumerator despawnAfterDeath()
+    {
+        yield return new WaitForSeconds(1.2f);
+
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+            yield break;
+
+        NetworkObject netObj = GetComponent<NetworkObject>();
+
+        if (netObj != null && netObj.IsSpawned)
+        {
+            netObj.Despawn(true);
+        }
     }
 }

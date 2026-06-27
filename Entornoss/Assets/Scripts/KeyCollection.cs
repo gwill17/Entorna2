@@ -29,7 +29,6 @@ public class KeyCollection : NetworkBehaviour
     /// </summary>
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // Solo el Servidor valida y procesa la recolección de objetos
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
             return;
 

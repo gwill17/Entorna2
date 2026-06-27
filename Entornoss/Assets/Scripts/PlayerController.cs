@@ -38,7 +38,6 @@ public class PlayerController : CharController
     /// </summary>
     protected override void Awake()
     {
-        // Se asume que CharController ya implementa la inicialización base.
         base.Awake();
         controls = new PlayerControls();
 
@@ -51,7 +50,6 @@ public class PlayerController : CharController
         };
         controls.Player.Attack.performed += onAttack;
 
-        // Ocultar hasta que LevelGenerator lo reposicione
         //gameObject.SetActive(false);
     }
 
@@ -84,7 +82,6 @@ public class PlayerController : CharController
         }
         base.OnNetworkSpawn();
 
-        // Únicamente el cliente dueño de este personaje debe inicializar el HUD y registrarse
         if (IsOwner)
         {
             UniqueEntity uniqueEntity = GetComponent<UniqueEntity>();
@@ -151,7 +148,6 @@ public class PlayerController : CharController
         {
             //Debug.Log($"MOVIMIENTO: {movement}");
         }
-        // Solo el dueño del objeto calcula su movimiento, rotación y comprueba su muerte de forma activa
         if (!IsOwner) return;
 
         animator.SetFloat("speed", movement.sqrMagnitude);
@@ -176,7 +172,6 @@ public class PlayerController : CharController
 
         controls.Enable();
 
-        // Asignamos la acción de ataque controlando que solo responda el dueño local
         controls.Player.Attack.performed += onAttack; ;
     }
 
@@ -245,11 +240,9 @@ public class PlayerController : CharController
     /// </summary>
     public void ApplyCharacterStats(PlayerStats newStats)
     {
-        // Casting del campo heredado
         if (newStats != null)
         {
             stats = newStats;
-            // Forzamos la recarga limpia para evitar mutaciones exponenciales de moveSpeed
             LoadStats();
         }
     }
@@ -260,28 +253,23 @@ public class PlayerController : CharController
     protected override void LoadStats()
     {
         
-
         base.LoadStats();
 
-        //  Haz casting del campo heredado
         PlayerStats playerStats = stats as PlayerStats;
 
         if (playerStats != null)
         {
-            // Aplica el bonus de velocidad del jugador
             moveSpeed *= playerStats.speedBonus;
             
-            // Carga stats específicas del jugador
             damageToEnemy = playerStats.attackDamage;
             attackCooldown = playerStats.attackCooldown;
         }
         else
         {
-            // Valores por defecto si no hay PlayerStats
             //Debug.LogWarning($"[{gameObject.name}] No tiene PlayerStats asignado. Usando valores por defecto.");
             damageToEnemy = 50;
             attackCooldown = 0.5f;
-            moveSpeed *= 1.25f; // Bonus por defecto
+            moveSpeed *= 1.25f; 
         }
     }
 
@@ -341,7 +329,6 @@ public class PlayerController : CharController
     {
         ulong clientId = rpcParams.Receive.SenderClientId;
 
-        // Le pasamos la posición al GameManager
         if (GameManager.Instance.TryOpenDoor(clientId, doorPosition))
         {
             Debug.Log($"[Server] Servidor autorizó la puerta en la posición {doorPosition}");

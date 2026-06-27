@@ -6,7 +6,6 @@ public class DoorController : NetworkBehaviour
 {
     [SerializeField] private Sprite openDoorSprite;
 
-    // VARIABLE QUE FALTABA: Controla si la puerta ya fue procesada localmente
     private bool isOpen = false;
 
     private Collider2D triggerCollider;
@@ -41,10 +40,8 @@ public class DoorController : NetworkBehaviour
 
         if (!player.IsOwner) return;
 
-        // Marcamos localmente como abierta para evitar doble envío por lag
         isOpen = true;
 
-        // ¡Le pasamos la posición exacta en el mundo!
         player.SolicitarAperturaPuertaServerRpc(transform.position);
     }
 
