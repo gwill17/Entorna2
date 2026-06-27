@@ -337,18 +337,18 @@ public class PlayerController : CharController
         isAttackingNet.Value = value;
     }
     [ServerRpc]
-    public void SolicitarAperturaPuertaServerRpc(string doorEntityId, ServerRpcParams rpcParams = default)
+    public void SolicitarAperturaPuertaServerRpc(Vector3 doorPosition, ServerRpcParams rpcParams = default)
     {
         ulong clientId = rpcParams.Receive.SenderClientId;
 
-        // Le pedimos al GameManager que valide, reste la llave y mande el ClientRpc global
-        if (GameManager.Instance.TryOpenDoor(clientId, doorEntityId))
+        // Le pasamos la posición al GameManager
+        if (GameManager.Instance.TryOpenDoor(clientId, doorPosition))
         {
-            Debug.Log($"[Server] Puerta {doorEntityId} autorizada y procesada para el cliente {clientId}");
+            Debug.Log($"[Server] Servidor autorizó la puerta en la posición {doorPosition}");
         }
         else
         {
-            Debug.LogWarning($"[Server] Cliente {clientId} no pudo abrir la puerta {doorEntityId} (Sin llaves)");
+            Debug.LogWarning($"[Server] Cliente {clientId} intentó abrir la puerta pero no tiene llaves.");
         }
     }
 }

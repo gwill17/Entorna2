@@ -248,7 +248,7 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    public bool TryOpenDoor(ulong clientId, string doorEntityId)
+    public bool TryOpenDoor(ulong clientId, Vector3 doorPosition)
     {
         if (!NetworkManager.Singleton.IsServer) return false;
 
@@ -256,18 +256,18 @@ public class GameManager : NetworkBehaviour
         {
             if (state.Keys > 0)
             {
-                state.Keys--;
-                playerStates[clientId] = state;
+                state.Keys--; // Consumimos la llave en el servidor
+                playerStates[clientId] = state; // Guardamos el struct modificado
 
-                // 1. Sincronizamos el HUD del jugador que usó la llave
+                // Sincronizamos el HUD de quien gastó la llave
                 ClientRpcParams clientRpcParams = new ClientRpcParams
                 {
                     Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } }
                 };
                 SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
 
-                // 2. ¡IMPORTANTE! El Servidor le ordena a TODOS los clientes abrir la puerta físicamente
-                NotificarAperturaPuertaAClientes(doorEntityId);
+                // ¡EL PASO CLAVE! Le mandamos a todos la POSICIÓN exacta de la puerta
+                AbrePuertaPorPosicionGlobalClientRpc(doorPosition);
 
                 return true;
             }
@@ -275,34 +275,23 @@ public class GameManager : NetworkBehaviour
         return false;
     }
 
-    public void NotificarAperturaPuertaAClientes(string doorEntityId)
-    {
-        if (!IsServer) return;
-
-        // Al ejecutarse desde el GameManager (que sí está spawneado), viaja seguro por la red
-        AbrePuertaEnTodosLosClientesClientRpc(doorEntityId);
-    }
-
     [ClientRpc]
-    private void AbrePuertaEnTodosLosClientesClientRpc(string doorEntityId)
+    private void AbrePuertaPorPosicionGlobalClientRpc(Vector3 doorPosition)
     {
-        Debug.Log($"[ClientRpc] Orden recibida en cliente: Abriendo puerta con ID {doorEntityId}");
-
-        // Buscamos todas las puertas en la escena local de ESTE cliente
+        // Buscamos todas las puertas en la escena local de este ordenador
         DoorController[] puertas = FindObjectsByType<DoorController>(FindObjectsSortMode.None);
 
         foreach (DoorController puerta in puertas)
         {
-            if (puerta.EntityId == doorEntityId)
+            // Comparamos si la distancia entre la puerta y la posición enviada es casi cero
+            if (Vector3.Distance(puerta.transform.position, doorPosition) < 0.2f)
             {
-                // Ejecuta la desactivación del collider y el cambio de sprite local
-                puerta.OpenDoorLocal();
-                Debug.Log($"[ClientRpc] Puerta {doorEntityId} abierta con éxito localmente.");
+                puerta.OpenDoorLocal(); // Abre la puerta (sprite + collider)
+                Debug.Log($"[Netcode] Puerta abierta síncronamente en posición: {doorPosition}");
                 break;
             }
         }
     }
-
     public bool TryTriggerVictory(string playerEntityId, string chestEntityId)
     {
         victoryAchieved();

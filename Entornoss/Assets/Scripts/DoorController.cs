@@ -6,7 +6,9 @@ public class DoorController : NetworkBehaviour
 {
     [SerializeField] private Sprite openDoorSprite;
 
+    // VARIABLE QUE FALTABA: Controla si la puerta ya fue procesada localmente
     private bool isOpen = false;
+
     private Collider2D triggerCollider;
     private Collider2D blockingCollider;
     private SpriteRenderer spriteRenderer;
@@ -14,10 +16,7 @@ public class DoorController : NetworkBehaviour
 
     public string EntityId => uniqueEntity?.EntityId ?? "UNKNOWN";
     public EntityType EntityType => uniqueEntity?.Type ?? EntityType.Interactive_Door;
-    private NetworkVariable<bool> isOpenNet = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-    /// <summary>
-    /// Inicializa componentes de la puerta y valida la configuración de entidad.
-    /// </summary>
+
     private void Awake()
     {
         uniqueEntity = GetComponent<UniqueEntity>();
@@ -31,28 +30,27 @@ public class DoorController : NetworkBehaviour
         cacheColliders();
     }
 
-    /// <summary>
-    /// Gestiona la interacción de apertura cuando entra un jugador en el trigger.
-    /// </summary>
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // OJO: Quitamos el "if (!IsServer) return;" porque queremos que el CLIENTE 
-        // que toca la puerta localmente también pueda iniciar el proceso.
+        if (isOpen) return;
 
-        if (isOpen || !other.CompareTag("Player")) return;
-        if (!other.TryGetComponent(out PlayerController player)) return;
+        if (!other.CompareTag("Player")) return;
 
-        // Solo el dueño local de ese personaje debe activar la puerta
+        PlayerController player = other.GetComponent<PlayerController>();
+        if (player == null) return;
+
         if (!player.IsOwner) return;
 
-        // El jugador le pide al servidor que intente abrir la puerta
-        player.SolicitarAperturaPuertaServerRpc(EntityId);
+        // Marcamos localmente como abierta para evitar doble envío por lag
+        isOpen = true;
+
+        // ¡Le pasamos la posición exacta en el mundo!
+        player.SolicitarAperturaPuertaServerRpc(transform.position);
     }
 
     /// <summary>
-    /// Abre la puerta visualmente y desactiva la colisión bloqueante.
+    /// Abre la puerta visualmente y desactiva la colisión en este ordenador.
     /// </summary>
-    /// 
     public void OpenDoorLocal()
     {
         isOpen = true;
@@ -62,36 +60,18 @@ public class DoorController : NetworkBehaviour
 
         if (blockingCollider != null)
             blockingCollider.enabled = false;
-    }
-    public void OpenDoor(PlayerController player)
-    {
-        isOpen = true;
 
-        Debug.Log($"[{EntityType}:{EntityId}] opened by [Player:{player.EntityId}]");
-
-        if (openDoorSprite != null && spriteRenderer != null)
-        {
-            spriteRenderer.sprite = openDoorSprite;
-        }
-
-        if (blockingCollider != null)
-        {
-            blockingCollider.enabled = false;
-        }
+        if (triggerCollider != null)
+            triggerCollider.enabled = false;
     }
 
-    /// <summary>
-    /// Localiza y almacena los colliders de trigger y bloqueo de la puerta.
-    /// </summary>
     private void cacheColliders()
     {
         Collider2D[] colliders = GetComponents<Collider2D>();
         foreach (Collider2D col in colliders)
         {
-            if (col.isTrigger)
-                triggerCollider = col;
-            else
-                blockingCollider = col;
+            if (col.isTrigger) triggerCollider = col;
+            else blockingCollider = col;
         }
     }
 }
