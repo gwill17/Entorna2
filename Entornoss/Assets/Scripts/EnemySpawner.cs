@@ -44,7 +44,7 @@ public class EnemySpawner : NetworkBehaviour
 
         if (spawnedCount >= totalEnemies)
         {
-            Debug.LogWarning("[EnemySpawner] Límite alcanzado en " + gameObject.name + " totalEnemies=" + totalEnemies);
+            //Debug.LogWarning("[EnemySpawner] Límite alcanzado en " + gameObject.name + " totalEnemies=" + totalEnemies);
             return;
         }
 

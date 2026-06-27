@@ -1,2 +1,21 @@
 fileFormatVersion: 2
 guid: f76de6386faa47b43a9bb46078019792
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - tilemapFiller: {instanceID: 0}
+  - defaultMapConfig: {fileID: 11400000, guid: a2d870e76cd0eba489fe60ae317c6517, type: 2}
+  - treasurePrefab: {fileID: 6709209570887370143, guid: 111b683a758c08e4b8aa5bb1525f61de, type: 3}
+  - treasureRoomWallPrefab: {fileID: 9156780766202428443, guid: 14e5996db2c4b124c934ff1ff14122b5, type: 3}
+  - treasureRoomCornerPrefab: {fileID: 2701096173652146815, guid: c82bd523219362644aff96c0aebfdb1d, type: 3}
+  - treasureRoomOpenDoor: {fileID: 8983055333163957072, guid: 3bf6955b01dcfc048b87cc86bd949e00, type: 3}
+  - treasureRoomClosedDoor: {fileID: 4853005277169393996, guid: e7f117b321e666b41bf03a437a79e608, type: 3}
+  - dragonSpawnerPrefab: {fileID: 8561800817310522487, guid: 81c7f855e41e00745a61ce45c3769d59, type: 3}
+  - goatSpawnerPrefab: {fileID: 8561800817310522487, guid: 0b69ddeca01aae544ba9b5ad1cefbeda, type: 3}
+  - networkPlayerPrefab: {fileID: 9122475243463114963, guid: d9969b1b675d0224fb7413e14e6bb9c6, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

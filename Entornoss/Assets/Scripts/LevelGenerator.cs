@@ -75,7 +75,7 @@ public class LevelGenerator : NetworkBehaviour
     }
 
     /// <summary>
-    /// 🌟 SOLUCIÓN AL CLON: Se ejecuta una única vez de forma segura cuando el objeto despierta en la red.
+    ///  Se ejecuta una única vez de forma segura cuando el objeto despierta en la red.
     /// </summary>
     /// 
     private bool levelGenerated = false;
@@ -84,16 +84,32 @@ public class LevelGenerator : NetworkBehaviour
     {
         if (levelGenerated) return;
 
-        //Debug.Log("[LevelGenerator] Generando mapa local");
-        generateLevel();
-        levelGenerated = true;
-
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        if (NetworkManager.Singleton.IsServer)
         {
-            //Debug.Log("[LevelGenerator] Servidor spawneando jugadores");
+            // 1. El servidor genera una semilla aleatoria y la aplica
+            int seed = System.Environment.TickCount;
+            UnityEngine.Random.InitState(seed);
+
+            // 2. Avisa a los clientes de la semilla para que generen el MISMO mapa
+            GenerarMapaConSemillaClientRpc(seed);
+
+            // 3. Spawnea los jugadores
             SpawnPlayersProcedural();
         }
     }
+
+    [ClientRpc]
+    private void GenerarMapaConSemillaClientRpc(int seed)
+    {
+        if (levelGenerated) return;
+
+        // Todos los clientes configuran su estado aleatorio con el mismo número
+        UnityEngine.Random.InitState(seed);
+
+        generateLevel();
+        levelGenerated = true;
+    }
+
     public override void OnNetworkSpawn()
     {
         Debug.Log($"[LevelGenerator] OnNetworkSpawn. IsServer={IsServer}, IsClient={IsClient}");

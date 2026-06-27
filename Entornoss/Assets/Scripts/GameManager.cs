@@ -159,54 +159,56 @@ public class GameManager : NetworkBehaviour
         return localClientKeys;
     }
 
-    public bool TryAddDiamond(ulong playerClientId, string diamondEntityId)
-    {
-        if (!IsServer) return false;
-
-        // Si no existe el estado en el servidor para este cliente, lo inicializamos inmediatamente
-        if (!playerStates.ContainsKey(playerClientId))
-        {
-            playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
-        }
-
-        playerStates[playerClientId].AddDiamond();
-
-        // Enviamos el RPC ÚNICAMENTE al cliente que lo recogió
-        ClientRpcParams clientRpcParams = new ClientRpcParams
-        {
-            Send = new ClientRpcSendParams
-            {
-                TargetClientIds = new ulong[] { playerClientId }
-            }
-        };
-
-        SincronizarHUDLocalClientRpc(playerStates[playerClientId].Diamonds, playerStates[playerClientId].Keys, clientRpcParams);
-        return true;
-    }
-
-    // NUEVA FUNCIÓN CORREGIDA PARA LLAVES
     public bool TryAddKey(ulong playerClientId, string keyEntityId)
     {
         if (!IsServer) return false;
 
-        // Si no existe el estado para este cliente en el servidor, lo inicializamos inmediatamente
+        // 1. Si no existe, creamos el estado inicial
         if (!playerStates.ContainsKey(playerClientId))
         {
             playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
         }
 
-        playerStates[playerClientId].AddKey();
+        // 2. EXTRAEMOS el struct (Copia temporal)
+        PlayerGameState state = playerStates[playerClientId];
 
-        // Enviamos el RPC ÚNICAMENTE al cliente que lo recogió
+        // 3. Modificamos la variable
+        state.AddKey();
+
+        // 4. ¡CRUCIAL! Volvemos a guardar el struct modificado en el diccionario
+        playerStates[playerClientId] = state;
+
+        // Enviamos el RPC ÚNICAMENTE al cliente que lo recogió para actualizar su HUD
         ClientRpcParams clientRpcParams = new ClientRpcParams
         {
-            Send = new ClientRpcSendParams
-            {
-                TargetClientIds = new ulong[] { playerClientId }
-            }
+            Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerClientId } }
         };
 
-        SincronizarHUDLocalClientRpc(playerStates[playerClientId].Diamonds, playerStates[playerClientId].Keys, clientRpcParams);
+        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
+        return true;
+    }
+
+    // HAZ LO MISMO CON LOS DIAMANTES POR SI ACASO EN GameManager.cs
+    public bool TryAddDiamond(ulong playerClientId, string diamondEntityId)
+    {
+        if (!IsServer) return false;
+
+        if (!playerStates.ContainsKey(playerClientId))
+        {
+            playerStates[playerClientId] = new PlayerGameState($"PLAYER_{playerClientId}");
+        }
+
+        // Extraemos, modificamos y reasignamos el struct
+        PlayerGameState state = playerStates[playerClientId];
+        state.AddDiamond();
+        playerStates[playerClientId] = state;
+
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { playerClientId } }
+        };
+
+        SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
         return true;
     }
 
@@ -246,30 +248,57 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    public bool TryOpenDoor(ulong playerClientId)
+    public bool TryOpenDoor(ulong clientId, string doorEntityId)
     {
-        if (!IsServer) return false;
-        if (!playerStates.ContainsKey(playerClientId)) return false;
+        if (!NetworkManager.Singleton.IsServer) return false;
 
-        return playerStates[playerClientId].UseKey();
+        if (playerStates.TryGetValue(clientId, out PlayerGameState state))
+        {
+            if (state.Keys > 0)
+            {
+                state.Keys--;
+                playerStates[clientId] = state;
+
+                // 1. Sincronizamos el HUD del jugador que usó la llave
+                ClientRpcParams clientRpcParams = new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } }
+                };
+                SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, clientRpcParams);
+
+                // 2. ¡IMPORTANTE! El Servidor le ordena a TODOS los clientes abrir la puerta físicamente
+                NotificarAperturaPuertaAClientes(doorEntityId);
+
+                return true;
+            }
+        }
+        return false;
     }
 
     public void NotificarAperturaPuertaAClientes(string doorEntityId)
     {
         if (!IsServer) return;
-        AprobarAperturaPuertaClientRpc(doorEntityId);
+
+        // Al ejecutarse desde el GameManager (que sí está spawneado), viaja seguro por la red
+        AbrePuertaEnTodosLosClientesClientRpc(doorEntityId);
     }
 
     [ClientRpc]
-    private void AprobarAperturaPuertaClientRpc(string doorEntityId)
+    private void AbrePuertaEnTodosLosClientesClientRpc(string doorEntityId)
     {
+        Debug.Log($"[ClientRpc] Orden recibida en cliente: Abriendo puerta con ID {doorEntityId}");
+
+        // Buscamos todas las puertas en la escena local de ESTE cliente
         DoorController[] puertas = FindObjectsByType<DoorController>(FindObjectsSortMode.None);
+
         foreach (DoorController puerta in puertas)
         {
             if (puerta.EntityId == doorEntityId)
             {
+                // Ejecuta la desactivación del collider y el cambio de sprite local
                 puerta.OpenDoorLocal();
-                return;
+                Debug.Log($"[ClientRpc] Puerta {doorEntityId} abierta con éxito localmente.");
+                break;
             }
         }
     }

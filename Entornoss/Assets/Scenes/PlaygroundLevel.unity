@@ -3728,7 +3728,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelGenerator
   ShowTopMostFoldoutHeaderGroup: 1
   tilemapFiller: {fileID: -5259628845251527081, guid: 3034d3bc02ee9fb43be45d6ada9db74f, type: 3}
-  defaultMapConfig: {fileID: 11400000, guid: f2b8fa0700c57d34f9afa2d02b13cf7c, type: 2}
+  defaultMapConfig: {fileID: 11400000, guid: e7f996d8a6f3bf845b973125994ac4c7, type: 2}
   treasurePrefab: {fileID: 6709209570887370143, guid: 111b683a758c08e4b8aa5bb1525f61de, type: 3}
   treasureRoomTiles:
   - tile: {fileID: 11400000, guid: 5d73fd2f65d457e45a4df4b6e536e7cd, type: 2}

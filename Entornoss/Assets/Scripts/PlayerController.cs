@@ -263,7 +263,7 @@ public class PlayerController : CharController
 
         base.LoadStats();
 
-        // ✅ Haz casting del campo heredado
+        //  Haz casting del campo heredado
         PlayerStats playerStats = stats as PlayerStats;
 
         if (playerStats != null)
@@ -336,15 +336,19 @@ public class PlayerController : CharController
     {
         isAttackingNet.Value = value;
     }
-
     [ServerRpc]
-    public void SolicitarAperturaPuertaServerRpc(string doorEntityId)
+    public void SolicitarAperturaPuertaServerRpc(string doorEntityId, ServerRpcParams rpcParams = default)
     {
-        // El servidor recibe la petición del cliente y valida si tiene llaves
-        if (GameManager.Instance.TryOpenDoor(OwnerClientId))
+        ulong clientId = rpcParams.Receive.SenderClientId;
+
+        // Le pedimos al GameManager que valide, reste la llave y mande el ClientRpc global
+        if (GameManager.Instance.TryOpenDoor(clientId, doorEntityId))
         {
-            // Si tiene llaves, el GameManager avisa a todo el mundo
-            GameManager.Instance.NotificarAperturaPuertaAClientes(doorEntityId);
+            Debug.Log($"[Server] Puerta {doorEntityId} autorizada y procesada para el cliente {clientId}");
+        }
+        else
+        {
+            Debug.LogWarning($"[Server] Cliente {clientId} no pudo abrir la puerta {doorEntityId} (Sin llaves)");
         }
     }
 }

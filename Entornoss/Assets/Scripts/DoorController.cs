@@ -14,7 +14,7 @@ public class DoorController : NetworkBehaviour
 
     public string EntityId => uniqueEntity?.EntityId ?? "UNKNOWN";
     public EntityType EntityType => uniqueEntity?.Type ?? EntityType.Interactive_Door;
-
+    private NetworkVariable<bool> isOpenNet = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
     /// <summary>
     /// Inicializa componentes de la puerta y valida la configuración de entidad.
     /// </summary>
