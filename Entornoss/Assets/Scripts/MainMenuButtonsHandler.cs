@@ -19,6 +19,11 @@ public class MainMenuButtonsHandler : MonoBehaviour
     private void Start()
     {
         initializeMapDropdown();
+
+        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsServer && NetworkManager.Singleton.IsClient)
+        {
+            if (mapsDropdown != null) mapsDropdown.interactable = false;
+        }
     }
 
     private void OnDestroy()
@@ -34,6 +39,11 @@ public class MainMenuButtonsHandler : MonoBehaviour
             return;
         }
 
+        if (mapsDropdown != null)
+        {
+            GameManager.Instance.SetMapIndexByHost(mapsDropdown.value);
+        }
+
         NetworkManager.Singleton.StartHost();
         Debug.Log("Host elegido");
         SceneManager.LoadScene(SceneNames.LobbyScene);
@@ -47,6 +57,8 @@ public class MainMenuButtonsHandler : MonoBehaviour
             return;
         }
 
+        GameManager.Instance.SelectedMapConfig = null;
+
         NetworkManager.Singleton.StartClient();
         SceneManager.LoadScene(SceneNames.LobbyScene);
     }
@@ -55,25 +67,27 @@ public class MainMenuButtonsHandler : MonoBehaviour
     /// </summary>
     public void OnButtonPlayClicked()
     {
+        if (NetworkManager.Singleton == null)
+        {
+            Debug.LogError("[MainMenu] No hay NetworkManager en la escena.");
+            return;
+        }
+
+        if (mapsDropdown != null)
+        {
+            GameManager.Instance.SetMapIndexByHost(mapsDropdown.value);
+        }
+
         if (GameManager.Instance?.SelectedMapConfig == null)
         {
             Debug.LogWarning("[MainMenu] No hay mapa seleccionado.");
             return;
         }
 
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.StartHost();
-            Debug.Log("[MainMenu] Host de Netcode iniciado. Cambiando de escena de forma segura...");
+        NetworkManager.Singleton.StartHost();
+        Debug.Log("[MainMenu] Host de Netcode iniciado. Cambiando de escena de forma segura...");
 
-            // 🌟 CAMBIO CRÍTICO: Usamos el SceneManager de Netcode en vez del normal de Unity
-            NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
-        }
-        else
-        {
-            // Por si acaso el NetworkManager no está, dejamos el método antiguo como salvavidas
-            SceneManager.LoadScene(SceneNames.CharSelection);
-        }
+        NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
     }
 
     public void OnOptionsButtonClicked()

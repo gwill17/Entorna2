@@ -89,18 +89,37 @@ public class LevelGenerator : NetworkBehaviour
             int seed = System.Environment.TickCount;
             UnityEngine.Random.InitState(seed);
 
-            GenerarMapaConSemillaClientRpc(seed);
+            int mapIndex = 0;
+            if (GameManager.Instance != null && GameManager.Instance.availableMaps != null)
+            {
+                for (int i = 0; i < GameManager.Instance.availableMaps.Length; i++)
+                {
+                    if (GameManager.Instance.availableMaps[i] == GameManager.Instance.SelectedMapConfig)
+                    {
+                        mapIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            GenerarMapaConSemillaClientRpc(seed, mapIndex);
 
             SpawnPlayersProcedural();
         }
     }
 
     [ClientRpc]
-    private void GenerarMapaConSemillaClientRpc(int seed)
+    private void GenerarMapaConSemillaClientRpc(int seed, int mapIndex)
     {
         if (levelGenerated) return;
 
         UnityEngine.Random.InitState(seed);
+
+        if (GameManager.Instance != null && GameManager.Instance.availableMaps != null && mapIndex < GameManager.Instance.availableMaps.Length)
+        {
+            GameManager.Instance.SelectedMapConfig = GameManager.Instance.availableMaps[mapIndex];
+            Debug.Log($"[Netcode] Mapa forzado por el Host mediante RPC: {GameManager.Instance.SelectedMapConfig.mapName}");
+        }
 
         generateLevel();
         levelGenerated = true;

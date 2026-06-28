@@ -32,6 +32,13 @@ public class GameManager : NetworkBehaviour
     public PlayerStats SelectedCharacterStats { get; set; }
     public MapConfig SelectedMapConfig { get; set; }
     public int SelectedCharacterIndex { get; set; } = -1;
+    public MapConfig[] availableMaps;
+
+    private NetworkVariable<int> selectedMapIndexNet = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     [SerializeField] private float delayBeforeScene = 0.5f;
 
@@ -59,7 +66,6 @@ public class GameManager : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-
         enemiesKilledNet.OnValueChanged += OnEnemiesKilledChanged;
     }
     private PlayerGameState GetStateForPlayer(string playerEntityId)
@@ -491,6 +497,18 @@ public class GameManager : NetworkBehaviour
                     colItem.enabled = false;
                 }
             }
+        }
+    }
+
+    public void SetMapIndexByHost(int mapDropdownIndex)
+    {
+        if (availableMaps == null || availableMaps.Length <= mapDropdownIndex) return;
+
+        SelectedMapConfig = availableMaps[mapDropdownIndex];
+
+        if (IsServer)
+        {
+            selectedMapIndexNet.Value = mapDropdownIndex;
         }
     }
 
