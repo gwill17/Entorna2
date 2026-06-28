@@ -33,6 +33,9 @@ public class PlayerController : CharController
 
     );
 
+    [Header("UI de Muerte Especial para el Host")]
+    [SerializeField] private GameObject gameOverCanvasPrefab;
+
     /// <summary>
     /// Inicializa controles de entrada y registra el jugador local en el gestor global.
     /// </summary>
@@ -102,8 +105,7 @@ public class PlayerController : CharController
 
     }
 
-    [Header("UI de Muerte Especial para el Host")]
-    [SerializeField] private GameObject hostDeathPanel;
+    
 
     private void OnHealthNetChanged(int oldValue, int newValue)
     {
@@ -117,7 +119,7 @@ public class PlayerController : CharController
             {
                 if (IsServer)
                 {
-                    Debug.Log("[Host] He muerto. Congelando personaje y activando pantalla de muerte local.");
+                    Debug.Log("[Host] He muerto. Congelando personaje e instanciando pantalla de estadísticas.");
 
                     if (controls != null) controls.Player.Disable();
                     if (rb != null) rb.linearVelocity = Vector2.zero;
@@ -129,14 +131,15 @@ public class PlayerController : CharController
                         childSR.enabled = false;
                     }
 
-                    if (hostDeathPanel != null)
+                    if (gameOverCanvasPrefab != null)
                     {
-                        hostDeathPanel.SetActive(true);
+                        GameObject goCanvas = Instantiate(gameOverCanvasPrefab);
 
+                     
                     }
                     else
                     {
-                        Debug.LogWarning("[PlayerController] No has asignado el 'hostDeathPanel' en el Inspector.");
+                        Debug.LogWarning("[PlayerController] No has asignado el 'gameOverCanvasPrefab' en el Inspector.");
                     }
                 }
                 else

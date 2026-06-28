@@ -224,6 +224,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4cc605f5cab4b0f4f9e9d3abd7a8a52d, type: 2}
   - {fileID: 11400000, guid: bab4382f0707bdf4fb1b65d0014d1dc6, type: 2}
   - {fileID: 11400000, guid: 010a2fba8cd64a546ad9b0618ce3a0fe, type: 2}
+  gameOverCanvasPrefab: {fileID: 2819258084725841298, guid: 0cb91a7beae7f85459325419a5cc9683, type: 3}
 --- !u!114 &7020552734176444248
 MonoBehaviour:
   m_ObjectHideFlags: 0
