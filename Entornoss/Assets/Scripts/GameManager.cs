@@ -383,7 +383,7 @@ public class GameManager : NetworkBehaviour
 
         CongelarEntidadesPartidaClientRpc();
 
-        //Debug.Log($"[F3.5] ¡Victoria alcanzada! Avisando a todos los clientes.");
+        //Debug.Log($" ¡Victoria alcanzada! Avisando a todos los clientes.");
 
         CancelInvoke(nameof(loadDeadScene));
         Invoke(nameof(loadVictoryScene), delayBeforeScene);

@@ -5,10 +5,8 @@ public class NetworkAutoStart : MonoBehaviour
 {
     private void Start()
     {
-        // Verificamos si existe el NetworkManager en la escena
         if (NetworkManager.Singleton != null)
         {
-            // Arranca automáticamente como Host (Servidor + Primer Jugador)
             NetworkManager.Singleton.StartHost();
             Debug.Log("[NetworkAutoStart] Iniciando partida automáticamente como HOST.");
         }

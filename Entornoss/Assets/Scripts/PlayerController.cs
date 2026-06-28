@@ -41,7 +41,6 @@ public class PlayerController : CharController
         base.Awake();
         controls = new PlayerControls();
 
-        // Vinculamos las acciones del nuevo Input System
         controls.Player.Move.performed += ctx => {
             if (IsOwner) movement = ctx.ReadValue<Vector2>();
         };
@@ -50,7 +49,6 @@ public class PlayerController : CharController
         };
         controls.Player.Attack.performed += onAttack;
 
-        //gameObject.SetActive(false);
     }
 
     /// <summary>
@@ -101,7 +99,6 @@ public class PlayerController : CharController
             GameEvents.DiamondsChanged();
         }
 
-        //IsAttacking = false;
 
     }
     private void OnHealthNetChanged(int oldValue, int newValue)
@@ -198,15 +195,12 @@ public class PlayerController : CharController
     {
         if (isDead) return;
 
-        base.Die(); // Marca isDead = true;
+        base.Die(); 
 
         if (IsServer)
         {
-            // En vez de forzar un cambio de escena mediante RPC aquí,
-            // le pasamos el control al GameManager para que verifique si el compañero sigue vivo.
             if (GameManager.Instance != null)
             {
-                // Invocamos el evento de muerte
                 GameEvents.PlayerDied(OwnerClientId);
             }
         }
@@ -214,13 +208,7 @@ public class PlayerController : CharController
     /// <summary>
     /// Aplica daño al jugador y notifica el cambio de salud al HUD.
     /// </summary>
-    /*[ClientRpc]
-    private void ShowDeadSceneClientRpc(ClientRpcParams clientRpcParams = default)
-    {
-        GameEvents.PlayerDied();
-
-        UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
-    }*/
+    
     public override void TakeDamage(int amount, Vector2 knockbackDir)
     {
         if (!IsServer) return;

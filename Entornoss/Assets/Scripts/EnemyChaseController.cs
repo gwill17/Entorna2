@@ -20,12 +20,6 @@ public class EnemyChaseController : EnemyController
     {
         base.Start();
 
-        /*if (GameManager.Instance != null)
-        {
-            playerTransform = GameManager.Instance.LocalPlayerTransform;
-            GameEvents.OnLocalPlayerRegistered += onPlayerRegistered;
-        }*/
-
         setNewWanderDirection();
     }
 
@@ -35,7 +29,6 @@ public class EnemyChaseController : EnemyController
     public override void OnDestroy()
     {
         base.OnDestroy();
-        //GameEvents.OnLocalPlayerRegistered -= onPlayerRegistered;
     }
 
     /// <summary>
@@ -71,10 +64,8 @@ public class EnemyChaseController : EnemyController
     /// </summary>
     protected override void Move()
     {
-        // Recordatorio: El movimiento y lógica de IA solo corre en el Servidor
         if (isKnockback) return;
 
-        // Buscamos cuál es el jugador más cercano en este frame
         playerTransform = GetNearestPlayer();
 
         if (playerTransform == null)

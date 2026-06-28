@@ -23,19 +23,16 @@ public class GameOverCanvasHandler : MonoBehaviour
     {
         Debug.Log("[UI Game Over] Limpiando datos de juego y regresando al menú principal.");
 
-        // 1. Forzamos al GameManager a resetear todas sus variables locales e inventarios a 0
         if (GameManager.Instance != null)
         {
             GameManager.Instance.ResetGameData();
         }
 
-        // 2. Apagamos el sistema de red de Netcode de forma limpia para que la siguiente partida empiece desde cero
         if (Unity.Netcode.NetworkManager.Singleton != null)
         {
             Unity.Netcode.NetworkManager.Singleton.Shutdown();
         }
 
-        // 3. Cambiamos a la escena del menú principal
         SceneManager.LoadScene(SceneNames.MainMenu);
     }
 
