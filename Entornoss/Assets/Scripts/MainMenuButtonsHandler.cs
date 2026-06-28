@@ -16,6 +16,10 @@ public class MainMenuButtonsHandler : MonoBehaviour
     [Header("UI")]
     [SerializeField] private TMP_Dropdown mapsDropdown;
 
+    /// <summary>
+    /// Inicializa el menú desplegable de mapas al arrancar y bloquea la interacción 
+    /// si el cliente no tiene permisos de servidor.
+    /// </summary>
     private void Start()
     {
         initializeMapDropdown();
@@ -25,12 +29,17 @@ public class MainMenuButtonsHandler : MonoBehaviour
             if (mapsDropdown != null) mapsDropdown.interactable = false;
         }
     }
-
+    /// <summary>
+    /// Limpia los listeners de la interfaz para evitar fugas de memoria al destruir el objeto.
+    /// </summary>
     private void OnDestroy()
     {
         if (mapsDropdown != null)
             mapsDropdown.onValueChanged.RemoveListener(onMapDropdownChanged);
     }
+    /// <summary>
+    /// Inicia la partida como Host, guarda la configuración del mapa y carga el Lobby.
+    /// </summary>
     public void OnHostButtonClicked()
     {
         if (NetworkManager.Singleton == null)
@@ -49,6 +58,9 @@ public class MainMenuButtonsHandler : MonoBehaviour
         SceneManager.LoadScene(SceneNames.LobbyScene);
     }
 
+    /// <summary>
+    /// Inicia la partida como Cliente, conectándose al Host y cargando el Lobby.
+    /// </summary>
     public void OnClientButtonClicked()
     {
         if (NetworkManager.Singleton == null)
@@ -90,11 +102,16 @@ public class MainMenuButtonsHandler : MonoBehaviour
         NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
     }
 
+    /// <summary>
+    /// Placeholder para la lógica del menú de opciones.
+    /// </summary>
     public void OnOptionsButtonClicked()
     {
         Debug.Log("Options button pressed");
     }
-
+    /// <summary>
+    /// Cierra la aplicación de forma segura.
+    /// </summary>
     public void OnExitButtonClicked()
     {
         Debug.Log("Exit button pressed");
@@ -104,7 +121,9 @@ public class MainMenuButtonsHandler : MonoBehaviour
         Application.Quit();
 #endif
     }
-
+    /// <summary>
+    /// Rellena el componente Dropdown con las configuraciones de mapa disponibles en el scriptable object.
+    /// </summary>
     private void initializeMapDropdown()
     {
         if (mapsDropdown == null || availableMaps == null || availableMaps.Length == 0)
@@ -133,7 +152,9 @@ public class MainMenuButtonsHandler : MonoBehaviour
     {
         applySelectedMap(index);
     }
-
+    /// <summary>
+    /// Actualiza la configuración global del mapa en el GameManager según el índice seleccionado.
+    /// </summary>
     private void applySelectedMap(int index)
     {
         if (availableMaps == null || index < 0 || index >= availableMaps.Length) return;

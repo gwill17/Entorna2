@@ -3,41 +3,35 @@ using UnityEngine.InputSystem;
 using Unity.Netcode;
 using Unity.Collections;
 
+/// <summary>
+/// Controla la lógica del jugador en el entorno multijugador, incluyendo el movimiento, 
+/// el sistema de combate, la sincronización de red y la gestión de estadísticas.
+/// </summary>
 public class PlayerController : CharController
 {
+    #region Variables y Propiedades
+    [Header("Configuración de Combate")]
     protected int damageToEnemy;
     protected float attackCooldown;
 
+    [Header("Configuración de Personajes")]
+    [SerializeField] private PlayerStats[] availableCharacters;
+    [SerializeField] private GameObject gameOverCanvasPrefab;
+
     private PlayerControls controls;
 
-    private NetworkVariable<int> healthNet = new NetworkVariable<int>(
-    0,
-    NetworkVariableReadPermission.Everyone,
-    NetworkVariableWritePermission.Server
-);
-    private NetworkVariable<bool> isAttackingNet = new NetworkVariable<bool>(
-    false,
-    NetworkVariableReadPermission.Everyone,
-    NetworkVariableWritePermission.Server
-);
+    // Variables de Red (Sincronización)
+    private NetworkVariable<int> healthNet = new NetworkVariable<int>(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private NetworkVariable<bool> isAttackingNet = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private NetworkVariable<int> selectedCharacterIndex = new NetworkVariable<int>(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     public bool IsAttacking => isAttackingNet.Value;
     public int DamageToEnemy => damageToEnemy;
+    #endregion
 
-    [SerializeField] private PlayerStats[] availableCharacters;
-
-    private NetworkVariable<int> selectedCharacterIndex = new NetworkVariable<int>(
-        -1,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server
-
-    );
-
-    [Header("UI de Muerte Especial para el Host")]
-    [SerializeField] private GameObject gameOverCanvasPrefab;
-
+    #region Ciclo de Vida (Unity y Netcode)
     /// <summary>
-    /// Inicializa controles de entrada y registra el jugador local en el gestor global.
+    /// Inicializa controles de entrada y registra el jugador local.
     /// </summary>
     protected override void Awake()
     {
@@ -51,142 +45,50 @@ public class PlayerController : CharController
             if (IsOwner) movement = Vector2.zero;
         };
         controls.Player.Attack.performed += onAttack;
-
     }
 
     /// <summary>
-    /// Inicializa estado del jugador y notifica los valores iniciales al HUD.
+    /// Inicializa estado del jugador y notifica valores iniciales al HUD.
     /// </summary>
     public override void OnNetworkSpawn()
     {
         healthNet.OnValueChanged += OnHealthNetChanged;
 
-        if (IsServer)
-        {
-            healthNet.Value = health;
-        }
-        if (IsOwner)
-        {
-            GameEvents.HealthChanged(healthNet.Value);
-        }
-        //Debug.Log($"[PlayerController] Spawn. IsOwner={IsOwner}, OwnerClientId={OwnerClientId}, LocalClientId={NetworkManager.Singleton.LocalClientId}");
+        if (IsServer) healthNet.Value = health;
+
+        if (IsOwner) GameEvents.HealthChanged(healthNet.Value);
+
         selectedCharacterIndex.OnValueChanged += OnCharacterIndexChanged;
 
+        // Si somos el dueño, notificamos al servidor nuestro personaje
         if (IsOwner && GameManager.Instance.SelectedCharacterIndex >= 0)
         {
             SetCharacterServerRpc(GameManager.Instance.SelectedCharacterIndex);
         }
 
-        if (selectedCharacterIndex.Value >= 0)
-        {
-            ApplyCharacterByIndex(selectedCharacterIndex.Value);
-        }
+        if (selectedCharacterIndex.Value >= 0) ApplyCharacterByIndex(selectedCharacterIndex.Value);
+
         base.OnNetworkSpawn();
 
         if (IsOwner)
         {
             UniqueEntity uniqueEntity = GetComponent<UniqueEntity>();
-
-//Debug.Log("SOY EL OWNER: " + OwnerClientId);
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.RegisterLocalPlayer(this, uniqueEntity);
-                //Debug.Log("[PlayerController] Jugador local registrado: " + gameObject.name);
-                //Debug.Log("LOCAL PLAYER REGISTRADO");
-
-            }
+            if (GameManager.Instance != null) GameManager.Instance.RegisterLocalPlayer(this, uniqueEntity);
 
             GameEvents.HealthChanged(health);
             GameEvents.KeysChanged();
             GameEvents.DiamondsChanged();
         }
-
-
     }
 
-    
+    protected override void Start() => base.Start();
 
-    private void OnHealthNetChanged(int oldValue, int newValue)
-    {
-        health = newValue;
-
-        if (IsOwner)
-        {
-            GameEvents.HealthChanged(newValue);
-
-            if (newValue <= 0)
-            {
-                if (IsServer)
-                {
-                    Debug.Log("[Host] He muerto. Congelando personaje e instanciando pantalla de estadísticas.");
-
-                    if (controls != null) controls.Player.Disable();
-                    if (rb != null) rb.linearVelocity = Vector2.zero;
-                    if (characterCollider != null) characterCollider.enabled = false;
-
-                    if (TryGetComponent<SpriteRenderer>(out SpriteRenderer sr)) sr.enabled = false;
-                    foreach (var childSR in GetComponentsInChildren<SpriteRenderer>())
-                    {
-                        childSR.enabled = false;
-                    }
-
-                    if (gameOverCanvasPrefab != null)
-                    {
-                        GameObject goCanvas = Instantiate(gameOverCanvasPrefab);
-
-                     
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[PlayerController] No has asignado el 'gameOverCanvasPrefab' en el Inspector.");
-                    }
-                }
-                else
-                {
-                    if (Unity.Netcode.NetworkManager.Singleton != null)
-                    {
-                        NetworkDisconnectHandler.ExpectingDeathDisconnect = true;
-                        Unity.Netcode.NetworkManager.Singleton.Shutdown();
-                    }
-                    UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
-                }
-            }
-        }
-    }
-    [ServerRpc]
-    private void SetCharacterServerRpc(int characterIndex)
-    {
-        if (characterIndex < 0 || characterIndex >= availableCharacters.Length)
-            return;
-
-        selectedCharacterIndex.Value = characterIndex;
-    }
-
-    private void OnCharacterIndexChanged(int oldValue, int newValue)
-    {
-        ApplyCharacterByIndex(newValue);
-    }
-
-    private void ApplyCharacterByIndex(int index)
-    {
-        if (index < 0 || index >= availableCharacters.Length)
-            return;
-
-        ApplyCharacterStats(availableCharacters[index]);
-
-        //Debug.Log($"[PlayerController] Aplicado personaje de índice {index} en {gameObject.name}");
-    }
     /// <summary>
     /// Actualiza animación, orientación y estado de vida en cada frame.
     /// </summary>
     protected override void Update()
     {
         if (isDead) return;
-        if (IsOwner && movement != Vector2.zero)
-        {
-            //Debug.Log($"MOVIMIENTO: {movement}");
-        }
         if (!IsOwner) return;
 
         animator.SetFloat("speed", movement.sqrMagnitude);
@@ -196,38 +98,60 @@ public class PlayerController : CharController
             float angle = Mathf.Atan2(movement.y, movement.x) * Mathf.Rad2Deg;
             transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
         }
-        if (IsServer && selectedCharacterIndex.Value >= 0)
-        {
-            checkDeath();
-        }
-    }
 
-    /// <summary>
-    /// Activa el mapa de controles y suscribe la acción de ataque.
-    /// </summary>
+        if (IsServer && selectedCharacterIndex.Value >= 0) checkDeath();
+    }
+    #endregion
+
+    #region Input y Controles
     private void OnEnable()
     {
         if (controls == null) return;
-
         controls.Enable();
-
-        controls.Player.Attack.performed += onAttack; ;
+        controls.Player.Attack.performed += onAttack;
     }
 
-    /// <summary>
-    /// Desuscribe las acciones de entrada de forma segura.
-    /// </summary>
     private void OnDisable()
     {
         if (controls == null) return;
-
         controls.Player.Attack.performed -= onAttack;
         controls.Disable();
     }
+    #endregion
 
-    protected override void Start()
+    #region Lógica de Combate y Muerte
+    /// <summary>
+    /// Inicia la animación de ataque y programa su final según el cooldown.
+    /// </summary>
+    private void onAttack(InputAction.CallbackContext context)
     {
-        base.Start();
+        if (!IsOwner) return;
+
+        PlayAttackServerRpc();
+        SetAttackingServerRpc(true);
+        Invoke(nameof(endAttack), attackCooldown);
+    }
+
+    /// <summary>
+    /// Finaliza el estado de ataque del jugador.
+    /// </summary>
+    private void endAttack()
+    {
+        if (!IsOwner) return;
+        SetAttackingServerRpc(false);
+    }
+
+    /// <summary>
+    /// Aplica daño al jugador y notifica el cambio de salud al HUD.
+    /// </summary>
+    public override void TakeDamage(int amount, Vector2 knockbackDir)
+    {
+        if (!IsServer) return;
+
+        base.TakeDamage(amount, knockbackDir);
+        healthNet.Value = health;
+
+        if (health <= 0 && !isDead) Die();
     }
 
     /// <summary>
@@ -236,35 +160,21 @@ public class PlayerController : CharController
     public override void Die()
     {
         if (isDead) return;
+        base.Die();
 
-        base.Die(); 
-
-        if (IsServer)
-        {
-            if (GameManager.Instance != null)
-            {
-                GameEvents.PlayerDied(OwnerClientId);
-            }
-        }
+        if (IsServer && GameManager.Instance != null) GameEvents.PlayerDied(OwnerClientId);
     }
+
     /// <summary>
-    /// Aplica daño al jugador y notifica el cambio de salud al HUD.
+    /// Verifica si la salud ha llegado a cero y ejecuta la muerte.
     /// </summary>
-    
-    public override void TakeDamage(int amount, Vector2 knockbackDir)
+    private void checkDeath()
     {
-        if (!IsServer) return;
-
-        base.TakeDamage(amount, knockbackDir);
-
-        healthNet.Value = health;
-
-        if (health <= 0 && !isDead)
-        {
-            Die();
-        }
+        if (health <= 0 && !isDead && selectedCharacterIndex.Value >= 0) Die();
     }
+    #endregion
 
+    #region Gestión de Estadísticas y Personajes
     /// <summary>
     /// Aplica un conjunto de estadísticas de personaje y recarga sus valores activos.
     /// </summary>
@@ -282,56 +192,94 @@ public class PlayerController : CharController
     /// </summary>
     protected override void LoadStats()
     {
-        
         base.LoadStats();
-
         PlayerStats playerStats = stats as PlayerStats;
 
         if (playerStats != null)
         {
             moveSpeed *= playerStats.speedBonus;
-            
             damageToEnemy = playerStats.attackDamage;
             attackCooldown = playerStats.attackCooldown;
         }
         else
         {
-            //Debug.LogWarning($"[{gameObject.name}] No tiene PlayerStats asignado. Usando valores por defecto.");
             damageToEnemy = 50;
             attackCooldown = 0.5f;
-            moveSpeed *= 1.25f; 
+            moveSpeed *= 1.25f;
         }
     }
 
-    /// <summary>
-    /// Verifica si la salud ha llegado a cero y ejecuta la muerte una sola vez.
-    /// </summary>
-    private void checkDeath()
+    private void OnCharacterIndexChanged(int oldValue, int newValue) => ApplyCharacterByIndex(newValue);
+
+    private void ApplyCharacterByIndex(int index)
     {
-        if (health <= 0 && !isDead && selectedCharacterIndex.Value >= 0)
+        if (index < 0 || index >= availableCharacters.Length) return;
+        ApplyCharacterStats(availableCharacters[index]);
+    }
+    #endregion
+
+    #region Sincronización y RPCs
+    /// <summary>
+    /// Callback disparado cuando el valor de red 'healthNet' cambia. 
+    /// Sincroniza la salud local y, si llega a cero, gestiona la muerte del propietario.
+    /// </summary>
+    private void OnHealthNetChanged(int oldValue, int newValue)
+    {
+        health = newValue;
+
+        if (IsOwner)
         {
-            Die();
+            GameEvents.HealthChanged(newValue);
+            if (newValue <= 0) HandleLocalDeath();
         }
     }
 
     /// <summary>
-    /// Inicia la animación de ataque y programa su final según el cooldown.
+    /// Ejecuta la lógica de final de partida local. Si es el servidor, desactiva los componentes del jugador.
+    /// Si es un cliente, desconecta de la red y carga la escena de derrota.
     /// </summary>
-    private void onAttack(InputAction.CallbackContext context)
+    private void HandleLocalDeath()
     {
-        if (!IsOwner) return;
+        if (IsServer)
+        {
+            if (controls != null) controls.Player.Disable();
+            if (rb != null) rb.linearVelocity = Vector2.zero;
+            if (characterCollider != null) characterCollider.enabled = false;
 
-        PlayAttackServerRpc();
-        SetAttackingServerRpc(true);
+            foreach (var sr in GetComponentsInChildren<SpriteRenderer>()) sr.enabled = false;
 
-        Invoke(nameof(endAttack), attackCooldown);
+            if (gameOverCanvasPrefab != null) Instantiate(gameOverCanvasPrefab);
+        }
+        else
+        {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkDisconnectHandler.ExpectingDeathDisconnect = true;
+                NetworkManager.Singleton.Shutdown();
+            }
+            UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
+        }
     }
+
+    /// <summary>
+    /// Solicita al servidor que actualice el índice de personaje seleccionado para este jugador.
+    /// </summary>
     [ServerRpc]
-    private void PlayAttackServerRpc()
+    private void SetCharacterServerRpc(int characterIndex)
     {
-        PlayAttackClientRpc();
+        if (characterIndex < 0 || characterIndex >= availableCharacters.Length) return;
+        selectedCharacterIndex.Value = characterIndex;
     }
 
+    /// <summary>
+    /// Envía la solicitud de ataque al servidor para que este autorice la ejecución en todos los clientes.
+    /// </summary>
+    [ServerRpc]
+    private void PlayAttackServerRpc() => PlayAttackClientRpc();
+
+    /// <summary>
+    /// Ejecuta la animación de ataque en todos los clientes conectados.
+    /// </summary>
     [ClientRpc]
     private void PlayAttackClientRpc()
     {
@@ -339,33 +287,21 @@ public class PlayerController : CharController
         animator.SetTrigger("Attack");
     }
 
+    /// <summary>
+    /// Sincroniza el estado de ataque (atacando/no atacando) mediante una NetworkVariable en el servidor.
+    /// </summary>
+    [ServerRpc]
+    private void SetAttackingServerRpc(bool value) => isAttackingNet.Value = value;
 
     /// <summary>
-    /// Finaliza el estado de ataque del jugador.
+    /// Permite a cualquier cliente solicitar al servidor la apertura de una puerta.
+    /// El servidor validará si el jugador tiene llaves suficientes antes de ejecutar la acción.
     /// </summary>
-    private void endAttack()
-    {
-        if (!IsOwner) return;
-
-        SetAttackingServerRpc(false);
-    }
-    [ServerRpc]
-    private void SetAttackingServerRpc(bool value)
-    {
-        isAttackingNet.Value = value;
-    }
-    [ServerRpc]
+    [ServerRpc(RequireOwnership = false)]
     public void SolicitarAperturaPuertaServerRpc(Vector3 doorPosition, ServerRpcParams rpcParams = default)
     {
         ulong clientId = rpcParams.Receive.SenderClientId;
-
-        if (GameManager.Instance.TryOpenDoor(clientId, doorPosition))
-        {
-            Debug.Log($"[Server] Servidor autorizó la puerta en la posición {doorPosition}");
-        }
-        else
-        {
-            Debug.LogWarning($"[Server] Cliente {clientId} intentó abrir la puerta pero no tiene llaves.");
-        }
+        GameManager.Instance.TryOpenDoor(clientId, doorPosition);
     }
+    #endregion
 }

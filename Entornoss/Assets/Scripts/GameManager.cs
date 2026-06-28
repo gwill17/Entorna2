@@ -17,10 +17,7 @@ public static class SceneNames
     public const string VictoryScene = "VictoryScene";
 }
 
-/// <summary>
-/// Gestor principal del juego. Centraliza el estado global, el inventario de los jugadores, 
-/// las transiciones de red y las condiciones de victoria o derrota.
-/// </summary>
+
 public class GameManager : NetworkBehaviour
 {
     #region Variables y Propiedades
@@ -130,7 +127,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Guarda la selección del personaje (estadísticas e índice) de forma local antes de iniciar partida.
+    /// Guarda la selección del personaje de forma local antes de iniciar partida.
     /// </summary>
     public void SelectCharacter(PlayerStats stats, int index)
     {
@@ -139,7 +136,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Configura el mapa a jugar desde el Lobby (Autoridad exclusiva del Servidor).
+    /// Configura el mapa a jugar desde el Lobby.
     /// </summary>
     public void SetMapIndexByHost(int mapDropdownIndex)
     {
@@ -216,7 +213,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Busca y recupera el estado almacenado (inventario) de un jugador a partir de su ID.
+    /// Busca y recupera el estado almacenado  de un jugador a partir de su ID.
     /// </summary>
     private PlayerGameState GetStateForPlayer(string playerEntityId)
     {
@@ -237,7 +234,7 @@ public class GameManager : NetworkBehaviour
 
     #region Lógica de Interacción Autoritativa (Servidor)
     /// <summary>
-    /// Incrementa de manera autoritativa (solo servidor) las estadísticas de bajas de un jugador.
+    /// Incrementa añadir de manera autoritativa  las estadísticas de bajas de un jugador.
     /// </summary>
     public void AddEnemyKillServer(ulong playerClientId)
     {
@@ -309,7 +306,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Valida si el jugador tiene llaves suficientes y abre la puerta si se cumple la condición (Autoritativo).
+    /// Valida si el jugador tiene llaves suficientes y abre la puerta si se cumple la condición.
     /// </summary>
     public bool TryOpenDoor(ulong clientId, Vector3 doorPosition)
     {
@@ -496,7 +493,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Limpia los eventos estáticos al descargar el nivel principal para evitar memory leaks.
+    /// Limpia los eventos estáticos al descargar el nivel principal.
     /// </summary>
     private void onSceneUnloaded(Scene scene)
     {
@@ -572,7 +569,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Gestiona la muerte de un cliente. Si quedan vivos, oculta el cadáver; si no, lanza el Game Over.
+    /// Gestiona la muerte de un cliente. Si quedan vivos, oculta el cadáver, si no, lanza el Game Over.
     /// </summary>
     private void onPlayerDeath(ulong deadClientId)
     {
@@ -650,7 +647,7 @@ public class GameManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Detiene a todos los jugadores y enemigos) y oculta recursos al terminar la partida.
+    /// Detiene a todos los jugadores y enemigos y oculta recursos al terminar la partida.
     /// </summary>
     [ClientRpc]
     private void CongelarEntidadesPartidaClientRpc()
