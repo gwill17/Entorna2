@@ -440,6 +440,7 @@ public class GameManager : NetworkBehaviour
     {
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
+            LimpiarEnemigosDeRed();
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.DeadScene, LoadSceneMode.Single);
         }
         else
@@ -458,6 +459,7 @@ public class GameManager : NetworkBehaviour
     {
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
+            LimpiarEnemigosDeRed();
             NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.VictoryScene, LoadSceneMode.Single);
         }
         else
@@ -466,10 +468,39 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    private void onPlayerDeath()
+    /// <summary>
+    /// Método auxiliar para que el Servidor elimine físicamente los enemigos de la red multijugador.
+    /// </summary>
+    private void LimpiarEnemigosDeRed()
+    {
+        if (!IsServer) return;
+
+        EnemyController[] enemigosRestantes = FindObjectsByType<EnemyController>(FindObjectsSortMode.None);
+
+        Debug.Log($"[Netcode Limpieza] Eliminando {enemigosRestantes.Length} enemigos remanentes del servidor.");
+
+        foreach (EnemyController enemigo in enemigosRestantes)
+        {
+            if (enemigo != null && enemigo.gameObject != null)
+            {
+                if (enemigo.TryGetComponent<NetworkObject>(out NetworkObject netObj))
+                {
+                    if (netObj.IsSpawned)
+                    {
+                        netObj.Despawn(true); 
+                    }
+                }
+                else
+                {
+                    Destroy(enemigo.gameObject);
+                }
+            }
+        }
+    }
+
+    private void onPlayerDeath(ulong deadClientId)
     {
         if (isGameOver) return;
-
         if (!IsServer) return;
 
         PlayerController[] todosLosJugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
@@ -477,30 +508,19 @@ public class GameManager : NetworkBehaviour
 
         foreach (PlayerController j in todosLosJugadores)
         {
-            if (j.TryGetComponent<SpriteRenderer>(out SpriteRenderer sr) && sr.enabled)
+            if (j.OwnerClientId != deadClientId && j.TryGetComponent<SpriteRenderer>(out SpriteRenderer sr) && sr.enabled)
             {
                 jugadoresVivos++;
             }
         }
 
-        //Debug.Log($"[GameManager - Servidor] Recuento de jugadores vivos en este frame: {jugadoresVivos}");
-
         if (jugadoresVivos > 0)
         {
-            //Debug.Log($"[GameManager] Aún queda algún superviviente ({jugadoresVivos}). La partida continúa.");
-
-            DesactivarJugadorMuertoServerRpc();
+            OcultarCuerpoMuertoClientRpc(deadClientId);
             return;
         }
 
-        //Debug.Log("[GameManager] ¡Cero jugadores vivos! Procesando derrota global...");
         ProcesarDerrotaGlobal();
-    }
-
-    [ServerRpc(RequireOwnership = false)]
-    private void DesactivarJugadorMuertoServerRpc(ServerRpcParams rpcParams = default)
-    {
-        OcultarCuerpoMuertoClientRpc(rpcParams.Receive.SenderClientId);
     }
 
     [ClientRpc]

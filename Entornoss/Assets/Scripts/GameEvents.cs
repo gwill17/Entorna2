@@ -7,7 +7,7 @@ public static class GameEvents
     public static event Action OnDiamondsChanged;
     public static event Action<int> OnEnemyKilled;
     public static event Action<PlayerController> OnLocalPlayerRegistered;
-    public static event Action OnPlayerDied;
+    public static event Action<ulong> OnPlayerDied;
     public static event Action OnVictory;
 
     /// <summary>
@@ -53,9 +53,9 @@ public static class GameEvents
     /// <summary>
     /// Notifica que el jugador ha muerto.
     /// </summary>
-    public static void PlayerDied()
+    public static void PlayerDied(ulong clientId)
     {
-        OnPlayerDied?.Invoke();
+        OnPlayerDied?.Invoke(clientId);
     }
 
     /// <summary>

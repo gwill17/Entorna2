@@ -207,7 +207,7 @@ public class PlayerController : CharController
             if (GameManager.Instance != null)
             {
                 // Invocamos el evento de muerte
-                GameEvents.PlayerDied();
+                GameEvents.PlayerDied(OwnerClientId);
             }
         }
     }

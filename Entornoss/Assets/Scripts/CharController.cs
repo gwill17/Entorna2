@@ -9,7 +9,8 @@ public abstract class CharController : NetworkBehaviour
 
     protected UniqueEntity uniqueEntity;
 
-    protected bool isDead = false;
+    protected bool isDead;
+    public bool IsDead => isDead;
 
     protected float moveSpeed;
     protected int initialHealth;

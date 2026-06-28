@@ -127,8 +127,9 @@ public class EnemyChaseController : EnemyController
 
         foreach (PlayerController player in allPlayers)
         {
-            // Opcional: Si el jugador está muerto, lo ignoramos
-            // if (player.IsDead) continue; 
+            if (player == null) continue;
+
+            if (player.IsDead) continue;
 
             float distance = Vector2.Distance(transform.position, player.transform.position);
             if (distance < shortestDistance)
