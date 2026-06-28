@@ -16,6 +16,9 @@ public class DoorController : NetworkBehaviour
     public string EntityId => uniqueEntity?.EntityId ?? "UNKNOWN";
     public EntityType EntityType => uniqueEntity?.Type ?? EntityType.Interactive_Door;
 
+    /// <summary>
+    /// Configura las referencias necesarias y almacena los colliders al inicializar el objeto.
+    /// </summary>
     private void Awake()
     {
         uniqueEntity = GetComponent<UniqueEntity>();
@@ -28,7 +31,9 @@ public class DoorController : NetworkBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         cacheColliders();
     }
-
+    /// <summary>
+    /// Detecta cuando un jugador entra en el área de interacción.
+    /// </summary>
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (isOpen) return;
@@ -61,7 +66,10 @@ public class DoorController : NetworkBehaviour
         if (triggerCollider != null)
             triggerCollider.enabled = false;
     }
-
+    /// <summary>
+    /// Clasifica los colliders del objeto en trigger (interacción) y blocking (bloqueo físico)
+    /// para facilitar su desactivación al abrir la puerta.
+    /// </summary>
     private void cacheColliders()
     {
         Collider2D[] colliders = GetComponents<Collider2D>();

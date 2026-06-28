@@ -16,9 +16,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     {
         SceneManager.LoadScene(SceneNames.MainMenu);
     }
-    //
+
     /// <summary>
-    /// Selecciona el personaje verde e inicia la partida.
+    /// Selecciona el personaje verde e informa al Lobby del índice correspondiente.
     /// </summary>
     public void OnGreenButtonClicked()
     {
@@ -29,7 +29,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         if (lobby != null)
             lobby.SetMyCharacter(0);
     }
-
+    /// <summary>
+    /// Selecciona el personaje morado e informa al Lobby del índice correspondiente.
+    /// </summary>
     public void OnPurpleButtonClicked()
     {
         GameManager.Instance.SelectCharacter(purpleCharacterStats, 1);
@@ -39,7 +41,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         if (lobby != null)
             lobby.SetMyCharacter(1);
     }
-
+    /// <summary>
+    /// Selecciona el personaje rojo e informa al Lobby del índice correspondiente.
+    /// </summary>
     public void OnRedButtonClicked()
     {
         GameManager.Instance.SelectCharacter(redCharacterStats, 2);
@@ -49,7 +53,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         if (lobby != null)
             lobby.SetMyCharacter(2);
     }
-
+    /// <summary>
+    /// Selecciona el personaje amarillo e informa al Lobby del índice correspondiente.
+    /// </summary>
     public void OnYellowButtonClicked()
     {
         GameManager.Instance.SelectCharacter(yellowCharacterStats, 3);
@@ -59,6 +65,10 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         if (lobby != null)
             lobby.SetMyCharacter(3);
     }
+    /// <summary>
+    /// Procesa la selección de personaje y la sincroniza 
+    /// a través del componente de red 'LobbySelectionNetwork'.
+    /// </summary>
     private void SelectCharacter(PlayerStats stats, int index)
     {
         GameManager.Instance.SelectCharacter(stats, index);

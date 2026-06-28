@@ -107,7 +107,9 @@ public class LevelGenerator : NetworkBehaviour
             SpawnPlayersProcedural();
         }
     }
-
+    /// <summary>
+    /// RPC invocado por el servidor para forzar a todos los clientes a generar un nivel idéntico usando la misma semilla.
+    /// </summary>
     [ClientRpc]
     private void GenerarMapaConSemillaClientRpc(int seed, int mapIndex)
     {
@@ -262,6 +264,9 @@ public class LevelGenerator : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// Determina si un anillo específico debe ser generado según la configuración del mapa.
+    /// </summary>
     private bool isRingEnabled(MapConfig cfg, int index)
     {
         if (cfg == null) return true;
@@ -276,7 +281,9 @@ public class LevelGenerator : NetworkBehaviour
             _ => true
         };
     }
-
+    /// <summary>
+    /// Obtiene el ancho definido para un anillo específico según la configuración del mapa.
+    /// </summary>
     private int getRingWidth(MapConfig cfg, int index)
     {
         if (cfg == null) return 8;
@@ -292,7 +299,9 @@ public class LevelGenerator : NetworkBehaviour
             _ => 8
         };
     }
-
+    /// <summary>
+    /// Obtiene el porcentaje de generación del mapa para un anillo según la configuración del mapa.
+    /// </summary>
     private float getDecorativePercentage(MapConfig cfg, int index, RingSettings ring)
     {
         if (cfg == null) return ring.decorativeElementPercentage;
@@ -308,7 +317,9 @@ public class LevelGenerator : NetworkBehaviour
             _ => ring.decorativeElementPercentage
         };
     }
-
+    /// <summary>
+    /// Construye el spawner de enemigos para un anillo específico.
+    /// </summary>
     private GameObject[] buildSpawnersArray(MapConfig cfg, int index)
     {
         Debug.Log($"[LevelGenerator] Ring {index}");
@@ -343,6 +354,9 @@ public class LevelGenerator : NetworkBehaviour
         return spawners;
     }
 
+    /// <summary>
+    /// Prepara la posición de spawn y la aplica al jugador si este ya existe.
+    /// </summary>
     private void preparePlayerSpawn()
     {
         if (!tryCalculateSpawnPos(out Vector3 spawnPos))
@@ -369,14 +383,18 @@ public class LevelGenerator : NetworkBehaviour
         applySpawnAndCharacter(player, pendingSpawnPos);
         hasPendingSpawn = false;
     }
-
+    /// <summary>
+    /// Aplica la posición calculada y las estadísticas del jugador.
+    /// </summary>
     private void applySpawnAndCharacter(PlayerController player, Vector3 spawnPos)
     {
         player.gameObject.SetActive(true);
         player.transform.position = spawnPos;
         applySelectedCharacter(player);
     }
-
+    /// <summary>
+    /// Calcula una posición válida para el spawn del jugador basada en los anillos activos.
+    /// </summary>
     private bool tryCalculateSpawnPos(out Vector3 spawnPos)
     {
         spawnPos = Vector3.zero;
@@ -451,7 +469,9 @@ public class LevelGenerator : NetworkBehaviour
 
         return true;
     }
-
+    /// <summary>
+    /// Aplica las estadísticas y el controlador de animación al personaje del jugador.
+    /// </summary>
     private void applySelectedCharacter(PlayerController player)
     {
         if (GameManager.Instance == null) return;
