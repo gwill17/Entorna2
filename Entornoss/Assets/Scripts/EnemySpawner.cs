@@ -82,7 +82,7 @@ public class EnemySpawner : NetworkBehaviour
         if (netObj != null)
         {
             netObj.Spawn();
-            Debug.Log($"[EnemySpawner] Enemigo spawneado en red: {enemy.name}");
+            //Debug.Log($"[EnemySpawner] Enemigo spawneado en red: {enemy.name}");
         }
         else
         {

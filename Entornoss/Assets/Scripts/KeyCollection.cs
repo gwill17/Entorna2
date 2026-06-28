@@ -40,7 +40,7 @@ public class KeyCollection : NetworkBehaviour
 
         if (GameManager.Instance.TryAddKey(player.OwnerClientId, EntityId))
         {
-            Debug.Log($"[{EntityType}:{EntityId}] collected by [Player:{player.EntityId}]");
+            //Debug.Log($"[{EntityType}:{EntityId}] collected by [Player:{player.EntityId}]");
 
             NetworkObject netObj = GetComponent<NetworkObject>();
             if (netObj != null && netObj.IsSpawned)

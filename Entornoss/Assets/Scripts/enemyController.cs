@@ -68,7 +68,6 @@ public abstract class EnemyController : CharController
     /// </summary>
     public override void Die()
     {
-        // Interceptamos la llamada de Die() de la clase base para redirigirla al flujo controlado multijugador
         checkDeath();
     }
 
@@ -79,7 +78,6 @@ public abstract class EnemyController : CharController
     {
         if (!NetworkManager.Singleton.IsServer) return;
 
-        // 1. Buscamos al jugador más cercano en escena para asignarle la baja personal
         PlayerController[] jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
         PlayerController atacante = null;
         float distanciaMinima = float.MaxValue;
@@ -94,16 +92,13 @@ public abstract class EnemyController : CharController
             }
         }
 
-        // 2. Registramos la baja síncrona en el Servidor usando la ID de red del atacante encontrado
         if (atacante != null && GameManager.Instance != null)
         {
             GameManager.Instance.AddEnemyKillServer(atacante.OwnerClientId);
         }
 
-        // 3. Spawneamos los drops de forma segura (una sola vez)
         spawnDrops();
 
-        // 4. Despawn oficial del objeto de red
         if (NetworkObject != null && NetworkObject.IsSpawned)
         {
             NetworkObject.Despawn(true);

@@ -198,29 +198,29 @@ public class PlayerController : CharController
     {
         if (isDead) return;
 
-        base.Die();
+        base.Die(); // Marca isDead = true;
 
         if (IsServer)
         {
-            ShowDeadSceneClientRpc(new ClientRpcParams
+            // En vez de forzar un cambio de escena mediante RPC aquí,
+            // le pasamos el control al GameManager para que verifique si el compañero sigue vivo.
+            if (GameManager.Instance != null)
             {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { OwnerClientId }
-                }
-            });
+                // Invocamos el evento de muerte
+                GameEvents.PlayerDied();
+            }
         }
     }
     /// <summary>
     /// Aplica daño al jugador y notifica el cambio de salud al HUD.
     /// </summary>
-    [ClientRpc]
+    /*[ClientRpc]
     private void ShowDeadSceneClientRpc(ClientRpcParams clientRpcParams = default)
     {
         GameEvents.PlayerDied();
 
         UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
-    }
+    }*/
     public override void TakeDamage(int amount, Vector2 knockbackDir)
     {
         if (!IsServer) return;

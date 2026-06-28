@@ -29,7 +29,6 @@ public class DiamondCollection : NetworkBehaviour
     /// </summary>
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // Solo el Servidor valida y procesa la recolección de objetos
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
             return;
 
@@ -39,15 +38,14 @@ public class DiamondCollection : NetworkBehaviour
         if (player == null) return;
         if (GameManager.Instance == null) return;
 
-        // Usamos el OwnerClientId nativo del NetworkBehaviour del jugador
         if (GameManager.Instance.TryAddDiamond(player.OwnerClientId, EntityId))
         {
-            Debug.Log($"[{EntityType}:{EntityId}] recogido por Cliente ID: {player.OwnerClientId}");
+            //Debug.Log($"[{EntityType}:{EntityId}] recogido por Cliente ID: {player.OwnerClientId}");
 
             NetworkObject netObj = GetComponent<NetworkObject>();
             if (netObj != null && netObj.IsSpawned)
             {
-                netObj.Despawn(true); // Destruye sincronizadamente en la red
+                netObj.Despawn(true); 
             }
         }
     }

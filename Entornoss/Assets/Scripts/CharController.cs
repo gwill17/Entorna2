@@ -92,7 +92,7 @@ public abstract class CharController : NetworkBehaviour
         isDead = true;
         health = 0;
 
-        Debug.Log($"[{EntityType}:{EntityId}] {gameObject.name} died");
+        //Debug.Log($"[{EntityType}:{EntityId}] {gameObject.name} died");
 
         animator.SetBool("IsDead", true);
         moveSpeed = 0f;
@@ -111,7 +111,7 @@ public abstract class CharController : NetworkBehaviour
 
         health -= amount;
 
-        Debug.Log($"[{EntityType}:{EntityId}] {gameObject.name} took {amount} damage. Health: {health}/{initialHealth}");
+        //Debug.Log($"[{EntityType}:{EntityId}] {gameObject.name} took {amount} damage. Health: {health}/{initialHealth}");
 
         TakeKnockback(knockbackDir, knockbackForce);
     }

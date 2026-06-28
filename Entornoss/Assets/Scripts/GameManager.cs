@@ -61,6 +61,8 @@ public class GameManager : NetworkBehaviour
         isGameOver = false;
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneUnloaded += onSceneUnloaded;
+
+        ResetGameData();
     }
 
     public override void OnNetworkSpawn()
@@ -92,7 +94,7 @@ public class GameManager : NetworkBehaviour
         SelectedCharacterStats = stats;
         SelectedCharacterIndex = index;
 
-        Debug.Log($"[GameManager] Personaje elegido: {stats.characterName} índice {index}");
+        //Debug.Log($"[GameManager] Personaje elegido: {stats.characterName} índice {index}");
     }
     public override void OnDestroy()
     {
@@ -127,11 +129,47 @@ public class GameManager : NetworkBehaviour
 
     public void ResetGameData()
     {
+        //Debug.Log("[GameManager] Reiniciando de forma absoluta todas las estadísticas e inventarios.");
+
         playerStates.Clear();
-        Time.timeScale = 1f; 
+        Time.timeScale = 1f;
+        isGameOver = false;
+
+        localClientDiamonds = 0;
+        localClientKeys = 0;
+        localClientEnemies = 0;
+
+        LocalPlayerController = null;
+        LocalPlayerEntity = null;
 
         if (IsServer)
+        {
             enemiesKilledNet.Value = 0;
+            ResetearHUDClientesClientRpc();
+        }
+        else
+        {
+            GameEvents.DiamondsChanged();
+            GameEvents.KeysChanged();
+        }
+    }
+
+    [ClientRpc]
+    private void ResetearHUDClientesClientRpc()
+    {
+        localClientDiamonds = 0;
+        localClientKeys = 0;
+        localClientEnemies = 0;
+
+        GameEvents.DiamondsChanged();
+        GameEvents.KeysChanged();
+        GameEvents.EnemyKilled(0);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        ResetGameData();
     }
 
     public void AddEnemyKillServer(ulong playerClientId)
@@ -243,7 +281,7 @@ public class GameManager : NetworkBehaviour
     [ClientRpc]
     private void SincronizarHUDLocalClientRpc(int totalDiamonds, int totalKeys, int totalEnemies, ClientRpcParams clientRpcParams = default)
     {
-        Debug.Log($"[HUD RPC] Actualizando mi HUD: Diamantes {totalDiamonds}, Llaves {totalKeys}");
+        //Debug.Log($"[HUD RPC] Actualizando mi HUD: Diamantes {totalDiamonds}, Llaves {totalKeys}");
 
         localClientDiamonds = totalDiamonds;
         localClientKeys = totalKeys;
@@ -270,7 +308,7 @@ public class GameManager : NetworkBehaviour
         
         if (GameManager.Instance.LocalPlayerController != null)
         {
-            Debug.Log($"[HUD RPC] Actualizando HUD local. Diamantes: {currentDiamonds}, Llaves: {currentKeys}");
+            //Debug.Log($"[HUD RPC] Actualizando HUD local. Diamantes: {currentDiamonds}, Llaves: {currentKeys}");
 
             GameEvents.DiamondsChanged();
             GameEvents.KeysChanged();
@@ -312,7 +350,7 @@ public class GameManager : NetworkBehaviour
             if (Vector3.Distance(puerta.transform.position, doorPosition) < 0.2f)
             {
                 puerta.OpenDoorLocal(); 
-                Debug.Log($"[Netcode] Puerta abierta síncronamente en posición: {doorPosition}");
+                //Debug.Log($"[Netcode] Puerta abierta síncronamente en posición: {doorPosition}");
                 break;
             }
         }
@@ -345,7 +383,7 @@ public class GameManager : NetworkBehaviour
 
         CongelarEntidadesPartidaClientRpc();
 
-        Debug.Log($"[F3.5] ¡Victoria alcanzada! Avisando a todos los clientes.");
+        //Debug.Log($"[F3.5] ¡Victoria alcanzada! Avisando a todos los clientes.");
 
         CancelInvoke(nameof(loadDeadScene));
         Invoke(nameof(loadVictoryScene), delayBeforeScene);
@@ -360,7 +398,7 @@ public class GameManager : NetworkBehaviour
             return;
         }
 
-        Debug.Log($"[GameManager] Personaje seleccionado: {selectedCharacter.characterName}");
+        //Debug.Log($"[GameManager] Personaje seleccionado: {selectedCharacter.characterName}");
         SelectedCharacterStats = selectedCharacter;
         ResetGameData();
 
@@ -385,7 +423,7 @@ public class GameManager : NetworkBehaviour
         
         if (isGameOver) return;
 
-        Debug.Log($"[GameManager] Game Over. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
+        //Debug.Log($"[GameManager] Game Over. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
         ProcesarDerrotaGlobal();
     }
     
@@ -412,7 +450,7 @@ public class GameManager : NetworkBehaviour
 
     private void victoryAchieved()
     {
-        Debug.Log($"[GameManager] Victoria. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
+        //Debug.Log($"[GameManager] Victoria. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
         Invoke(nameof(loadVictoryScene), delayBeforeScene);
     }
 
@@ -428,12 +466,71 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    private void onPlayerDeath() 
+    private void onPlayerDeath()
     {
         if (isGameOver) return;
 
-        Debug.Log($"[GameManager] Jugador muerto. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
+        if (!IsServer) return;
+
+        PlayerController[] todosLosJugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        int jugadoresVivos = 0;
+
+        foreach (PlayerController j in todosLosJugadores)
+        {
+            if (j.TryGetComponent<SpriteRenderer>(out SpriteRenderer sr) && sr.enabled)
+            {
+                jugadoresVivos++;
+            }
+        }
+
+        //Debug.Log($"[GameManager - Servidor] Recuento de jugadores vivos en este frame: {jugadoresVivos}");
+
+        if (jugadoresVivos > 0)
+        {
+            //Debug.Log($"[GameManager] Aún queda algún superviviente ({jugadoresVivos}). La partida continúa.");
+
+            DesactivarJugadorMuertoServerRpc();
+            return;
+        }
+
+        //Debug.Log("[GameManager] ¡Cero jugadores vivos! Procesando derrota global...");
         ProcesarDerrotaGlobal();
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void DesactivarJugadorMuertoServerRpc(ServerRpcParams rpcParams = default)
+    {
+        OcultarCuerpoMuertoClientRpc(rpcParams.Receive.SenderClientId);
+    }
+
+    [ClientRpc]
+    private void OcultarCuerpoMuertoClientRpc(ulong clientId)
+    {
+        PlayerController[] jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (PlayerController jugador in jugadores)
+        {
+            if (jugador.OwnerClientId == clientId)
+            {
+                if (jugador.TryGetComponent<Collider2D>(out Collider2D col)) col.enabled = false;
+                if (jugador.TryGetComponent<Rigidbody2D>(out Rigidbody2D rb))
+                {
+                    rb.linearVelocity = Vector2.zero;
+                    rb.bodyType = RigidbodyType2D.Kinematic;
+                }
+
+                if (jugador.TryGetComponent<SpriteRenderer>(out SpriteRenderer sr)) sr.enabled = false;
+                foreach (var childSR in jugador.GetComponentsInChildren<SpriteRenderer>()) childSR.enabled = false;
+
+                //Debug.Log($"[Netcode] El jugador con ID {clientId} ha sido camuflado del mapa por muerte.");
+
+                if (jugador.IsOwner)
+                {
+                    //Debug.Log("[GameManager] Soy el jugador que ha muerto. Activando modo espectador.");
+
+                }
+                break;
+            }
+        }
     }
 
     private void ProcesarDerrotaGlobal()
@@ -443,7 +540,7 @@ public class GameManager : NetworkBehaviour
 
         CongelarEntidadesPartidaClientRpc();
 
-        Debug.Log($"[GameManager] ¡Derrota alcanzada! Avisando a todos los clientes.");
+        //Debug.Log($"[GameManager] ¡Derrota alcanzada! Avisando a todos los clientes.");
 
         CancelInvoke(nameof(loadVictoryScene));
         Invoke(nameof(loadDeadScene), delayBeforeScene);
