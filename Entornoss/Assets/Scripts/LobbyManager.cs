@@ -40,15 +40,19 @@ public class LobbyManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (NetworkManager.Singleton == null) return;
-
-        NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler(MsgSelectCharacter);
-        NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler(MsgLobbyState);
-
-        if (NetworkManager.Singleton.IsServer)
+        if (NetworkManager.Singleton != null)
         {
-            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientChanged;
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientChanged;
+            if (NetworkManager.Singleton.CustomMessagingManager != null)
+            {
+                NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler(MsgSelectCharacter);
+                NetworkManager.Singleton.CustomMessagingManager.UnregisterNamedMessageHandler(MsgLobbyState);
+            }
+
+            if (NetworkManager.Singleton.IsServer)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientChanged;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientChanged;
+            }
         }
     }
 
@@ -195,7 +199,17 @@ public class LobbyManager : MonoBehaviour
     public void OnBackButtonClicked()
     {
         if (NetworkManager.Singleton != null)
+        {
+            //Debug.Log("[Lobby] Cerrando conexión de red de forma limpia.");
+
+            if (NetworkManager.Singleton.IsServer)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientChanged;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientChanged;
+            }
+
             NetworkManager.Singleton.Shutdown();
+        }
 
         SceneManager.LoadScene(SceneNames.MainMenu);
     }
