@@ -4,6 +4,8 @@ using UnityEngine.SceneManagement;
 
 public class NetworkDisconnectHandler : MonoBehaviour
 {
+    public static bool ExpectingDeathDisconnect = false;
+
     private void Start()
     {
         if (NetworkManager.Singleton != null)
@@ -26,6 +28,12 @@ public class NetworkDisconnectHandler : MonoBehaviour
 
         if (clientId == NetworkManager.Singleton.LocalClientId)
         {
+            if (ExpectingDeathDisconnect)
+            {
+                ExpectingDeathDisconnect = false; 
+                return; 
+            }
+
             if (!NetworkManager.Singleton.IsServer)
             {
                 Debug.Log("[Cliente] El Host ha cerrado el servidor. Regresando automáticamente al menú principal...");
@@ -35,7 +43,7 @@ public class NetworkDisconnectHandler : MonoBehaviour
                     GameManager.Instance.ResetGameData();
                 }
 
-                SceneManager.LoadScene(SceneNames.MainMenu);
+                SceneManager.LoadScene(SceneNames.DeadScene);
             }
         }
     }

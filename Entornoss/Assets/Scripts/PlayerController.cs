@@ -146,6 +146,7 @@ public class PlayerController : CharController
                 {
                     if (Unity.Netcode.NetworkManager.Singleton != null)
                     {
+                        NetworkDisconnectHandler.ExpectingDeathDisconnect = true;
                         Unity.Netcode.NetworkManager.Singleton.Shutdown();
                     }
                     UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
