@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 public class GameOverCanvasHandler : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI jewelsValueText;
+    [SerializeField] private TextMeshProUGUI globalJewelsValueText;
     [SerializeField] private TextMeshProUGUI keysValueText;
     [SerializeField] private TextMeshProUGUI enemiesKilledText;
 
@@ -45,6 +46,9 @@ public class GameOverCanvasHandler : MonoBehaviour
 
         if (jewelsValueText != null)
             jewelsValueText.text = GameManager.Instance.GetDiamonds().ToString();
+
+        if (globalJewelsValueText != null)
+            globalJewelsValueText.text = GameManager.Instance.GetGlobalDiamonds().ToString();
 
         if (keysValueText != null)
             keysValueText.text = GameManager.Instance.GetKeys().ToString();

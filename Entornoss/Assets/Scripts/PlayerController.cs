@@ -110,6 +110,17 @@ public class PlayerController : CharController
         if (IsOwner)
         {
             GameEvents.HealthChanged(newValue);
+            if (newValue <= 0)
+            {
+                Debug.Log("[PlayerController] Mis vidas han llegado a 0. Cargando pantalla de derrota individual.");
+
+                if (Unity.Netcode.NetworkManager.Singleton != null)
+                {
+                    Unity.Netcode.NetworkManager.Singleton.Shutdown();
+                }
+
+                UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
+            }
         }
     }
     [ServerRpc]

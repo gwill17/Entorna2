@@ -28,6 +28,12 @@ public class GameManager : NetworkBehaviour
     NetworkVariableWritePermission.Server
 );
 
+    private NetworkVariable<int> totalGlobalDiamondsNet = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
     public int EnemiesKilled => enemiesKilledNet.Value;
     public PlayerStats SelectedCharacterStats { get; set; }
     public MapConfig SelectedMapConfig { get; set; }
@@ -68,6 +74,7 @@ public class GameManager : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        totalGlobalDiamondsNet.Value = 0;
         enemiesKilledNet.OnValueChanged += OnEnemiesKilledChanged;
     }
     private PlayerGameState GetStateForPlayer(string playerEntityId)
@@ -144,6 +151,7 @@ public class GameManager : NetworkBehaviour
 
         if (IsServer)
         {
+            totalGlobalDiamondsNet.Value = 0;
             enemiesKilledNet.Value = 0;
             ResetearHUDClientesClientRpc();
         }
@@ -208,6 +216,22 @@ public class GameManager : NetworkBehaviour
             return playerStates.ContainsKey(clientId) ? playerStates[clientId].Diamonds : 0;
         }
         return localClientDiamonds;
+    }
+
+    public int GetGlobalDiamonds()
+    {
+        if (IsServer)
+        {
+            int totalGlobal = 0;
+            foreach (var state in playerStates.Values)
+            {
+                totalGlobal += state.Diamonds;
+            }
+            return totalGlobal;
+        }
+
+        
+        return totalGlobalDiamondsNet.Value;
     }
 
     public int GetKeys()
@@ -275,6 +299,8 @@ public class GameManager : NetworkBehaviour
         };
 
         SincronizarHUDLocalClientRpc(state.Diamonds, state.Keys, state.EnemiesKilled, clientRpcParams);
+
+        totalGlobalDiamondsNet.Value++;
         return true;
     }
 
