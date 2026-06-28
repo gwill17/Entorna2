@@ -101,25 +101,52 @@ public class PlayerController : CharController
 
 
     }
+
+    [Header("UI de Muerte Especial para el Host")]
+    [SerializeField] private GameObject hostDeathPanel;
+
     private void OnHealthNetChanged(int oldValue, int newValue)
     {
         health = newValue;
 
-        Debug.Log($"[HEALTH] {newValue}");
-
         if (IsOwner)
         {
             GameEvents.HealthChanged(newValue);
+
             if (newValue <= 0)
             {
-                Debug.Log("[PlayerController] Mis vidas han llegado a 0. Cargando pantalla de derrota individual.");
-
-                if (Unity.Netcode.NetworkManager.Singleton != null)
+                if (IsServer)
                 {
-                    Unity.Netcode.NetworkManager.Singleton.Shutdown();
-                }
+                    Debug.Log("[Host] He muerto. Congelando personaje y activando pantalla de muerte local.");
 
-                UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
+                    if (controls != null) controls.Player.Disable();
+                    if (rb != null) rb.linearVelocity = Vector2.zero;
+                    if (characterCollider != null) characterCollider.enabled = false;
+
+                    if (TryGetComponent<SpriteRenderer>(out SpriteRenderer sr)) sr.enabled = false;
+                    foreach (var childSR in GetComponentsInChildren<SpriteRenderer>())
+                    {
+                        childSR.enabled = false;
+                    }
+
+                    if (hostDeathPanel != null)
+                    {
+                        hostDeathPanel.SetActive(true);
+
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[PlayerController] No has asignado el 'hostDeathPanel' en el Inspector.");
+                    }
+                }
+                else
+                {
+                    if (Unity.Netcode.NetworkManager.Singleton != null)
+                    {
+                        Unity.Netcode.NetworkManager.Singleton.Shutdown();
+                    }
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.DeadScene);
+                }
             }
         }
     }
